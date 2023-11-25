@@ -304,3 +304,6 @@ scarletbanner/media/
 .env
 .envs/*
 !.envs/.local/
+
+# IDE Stuff
+.idea
