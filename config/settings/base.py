@@ -330,7 +330,7 @@ CORS_URLS_REGEX = r"^/api/.*$"
 # See more configuration options at https://drf-spectacular.readthedocs.io/en/latest/settings.html#settings
 SPECTACULAR_SETTINGS = {
     "TITLE": "The Scarlet Banner API",
-    "DESCRIPTION": "Documentation of API endpoints of The Scarlet Banner",
+    "DESCRIPTION": "Documentation for the Scarlet Banner API.",
     "VERSION": "1.0.0",
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAdminUser"],
 }
