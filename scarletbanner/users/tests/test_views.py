@@ -66,6 +66,38 @@ class TestUserUpdateView:
         messages_sent = [m.message for m in messages.get_messages(request)]
         assert messages_sent == [_("Information successfully updated")]
 
+    def test_anon(self, user: User, rf: RequestFactory):
+        view = UserUpdateView()
+        request = rf.get("/fake-url/")
+        request.user = AnonymousUser()
+        view.request = request
+        view.kwargs = {"username": user.username}
+
+        response = view.dispatch(request)
+        assert response.status_code == 302
+
+    def test_other(self, user: User, rf: RequestFactory):
+        other = UserFactory()
+        view = UserUpdateView()
+        request = rf.get("/fake-url/")
+        request.user = other
+        view.request = request
+        view.kwargs = {"username": user.username}
+
+        response = view.dispatch(request)
+        assert response.status_code == 403
+
+    def test_staff(self, user: User, rf: RequestFactory):
+        staff = UserFactory(is_staff=True)
+        view = UserUpdateView()
+        request = rf.get("/fake-url/")
+        request.user = staff
+        view.request = request
+        view.kwargs = {"username": user.username}
+
+        response = view.dispatch(request)
+        assert response.status_code == 200
+
 
 class TestUserRedirectView:
     def test_get_redirect_url(self, user: User, rf: RequestFactory):
