@@ -16,6 +16,12 @@ class UserSerializer(serializers.ModelSerializer[UserType]):
         }
 
 
+class UserPublicSerializer(serializers.ModelSerializer[UserType]):
+    class Meta:
+        model = User
+        fields = ["username"]
+
+
 class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
