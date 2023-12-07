@@ -7,6 +7,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from scarletbanner.users.api.serializers import UserCreateSerializer, UserPublicSerializer, UserSerializer
 from scarletbanner.users.api.views import UserViewSet
 from scarletbanner.users.models import User
 from scarletbanner.users.tests.factories import UserFactory
@@ -16,6 +17,15 @@ class TestUserViewSet:
     @pytest.fixture
     def api_rf(self) -> APIRequestFactory:
         return APIRequestFactory()
+
+    @staticmethod
+    def get_view(user: User | AnonymousUser, url: str, api_rf: APIRequestFactory):
+        view = UserViewSet()
+        request = api_rf.get(url)
+        request.user = user
+        view.action = "retrieve"
+        view.request = request
+        return view
 
     @staticmethod
     def post_data(data: dict, action: str, api_rf: APIRequestFactory):
@@ -43,13 +53,35 @@ class TestUserViewSet:
         return response
 
     def test_get_queryset(self, user: User, api_rf: APIRequestFactory):
-        view = UserViewSet()
-        request = api_rf.get("/fake-url/")
-        request.user = user
-
-        view.request = request
-
+        view = self.get_view(user, "/fake-url/", api_rf)
         assert user in view.get_queryset()
+
+    def test_get_serializer_create(self, api_rf: APIRequestFactory):
+        view = self.get_view(AnonymousUser(), "/fake-url/", api_rf)
+        view.action = "create"
+        assert view.get_serializer_class() is UserCreateSerializer
+
+    def test_get_serializer_anon(self, user: User, api_rf: APIRequestFactory):
+        view = self.get_view(AnonymousUser(), f"/fake-url/{user.username}/", api_rf)
+        view.request.url_kwargs = {"username": user.username}
+        assert view.get_serializer_class() is UserPublicSerializer
+
+    def test_get_serializer_self(self, user: User, api_rf: APIRequestFactory):
+        view = self.get_view(user, f"/fake-url/{user.username}/", api_rf)
+        view.request.url_kwargs = {"username": user.username}
+        assert view.get_serializer_class() is UserSerializer
+
+    def test_get_serializer_other(self, user: User, api_rf: APIRequestFactory):
+        other = UserFactory()
+        view = self.get_view(other, f"/fake-url/{user.username}/", api_rf)
+        view.request.url_kwargs = {"username": user.username}
+        assert view.get_serializer_class() is UserPublicSerializer
+
+    def test_get_serializer_staff(self, user: User, api_rf: APIRequestFactory):
+        staff = UserFactory(is_staff=True)
+        view = self.get_view(staff, f"/fake-url/{user.username}/", api_rf)
+        view.request.url_kwargs = {"username": user.username}
+        assert view.get_serializer_class() is UserSerializer
 
     @pytest.mark.django_db
     def test_create_success(self, api_rf: APIRequestFactory):

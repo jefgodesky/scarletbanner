@@ -14,7 +14,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from scarletbanner.utils.permissions import IsAuthenticated, IsSelfOrStaff
 
-from .serializers import UserCreateSerializer, UserSerializer
+from .serializers import UserCreateSerializer, UserPublicSerializer, UserSerializer
 
 User = get_user_model()
 
@@ -62,10 +62,19 @@ class UserViewSet(
     queryset = User.objects.all()
     lookup_field = "username"
 
+    def initialize_request(self, request, *args, **kwargs):
+        request = super().initialize_request(request, args, kwargs)
+        request.url_kwargs = kwargs
+        return request
+
     def get_serializer_class(self):
         if self.action == "create":
             return UserCreateSerializer
-        return UserSerializer
+
+        username = getattr(self.request, "url_kwargs", {}).get("username")
+        is_user = username == self.request.user.username
+        is_staff = self.request.user.is_staff
+        return UserSerializer if is_user or is_staff else UserPublicSerializer
 
     def get_permissions(self):
         self_or_staff = ["update", "partial_update", "destroy", "me"]
