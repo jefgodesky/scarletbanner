@@ -47,6 +47,11 @@ class TestUserViewSet:
         view = self.request("/fake-url/", "create", "post", AnonymousUser(), api_rf, None, data)
         return view.create(view.request)
 
+    def retrieve(self, subj: User | AnonymousUser, obj: User, api_rf: APIRequestFactory):
+        url = f"/fake-url/{obj.username}/"
+        view = self.request(url, "retrieve", "get", subj, api_rf, obj)
+        return view.retrieve(view.request)
+
     def destroy(self, subj: User | AnonymousUser, obj: User, api_rf: APIRequestFactory):
         url = f"/fake-url/{obj.username}/"
         view = self.request(url, "destroy", "delete", subj, api_rf, obj)
@@ -94,6 +99,56 @@ class TestUserViewSet:
             assert not User.objects.filter(username=data["username"]).exists()
 
     @pytest.mark.django_db
+    def test_retrieve_anon(self, user: User, api_rf):
+        response = self.retrieve(AnonymousUser(), user, api_rf)
+        assert response.status_code == 200
+        assert response.data == {
+            "username": user.username,
+            "url": f"http://testserver/api/v1/users/{user.username}/",
+            "is_active": True,
+            "is_staff": False,
+        }
+
+    @pytest.mark.django_db
+    def test_retrieve_self(self, user: User, api_rf):
+        response = self.retrieve(user, user, api_rf)
+        assert response.status_code == 200
+        assert response.data == {
+            "username": user.username,
+            "name": user.name,
+            "email": user.email,
+            "url": f"http://testserver/api/v1/users/{user.username}/",
+            "is_active": True,
+            "is_staff": False,
+        }
+
+    @pytest.mark.django_db
+    def test_retrieve_other(self, user: User, api_rf):
+        other = UserFactory()
+        response = self.retrieve(other, user, api_rf)
+        assert response.status_code == 200
+        assert response.data == {
+            "username": user.username,
+            "url": f"http://testserver/api/v1/users/{user.username}/",
+            "is_active": True,
+            "is_staff": False,
+        }
+
+    @pytest.mark.django_db
+    def test_retrieve_staff(self, user: User, api_rf):
+        staff = UserFactory(is_staff=True)
+        response = self.retrieve(staff, user, api_rf)
+        assert response.status_code == 200
+        assert response.data == {
+            "username": user.username,
+            "name": user.name,
+            "email": user.email,
+            "url": f"http://testserver/api/v1/users/{user.username}/",
+            "is_active": True,
+            "is_staff": False,
+        }
+
+    @pytest.mark.django_db
     def test_destroy_anon(self, user: User, api_rf: APIRequestFactory):
         with transaction.atomic():
             with pytest.raises(PermissionDenied):
@@ -137,4 +192,7 @@ class TestUserViewSet:
             "username": user.username,
             "url": f"http://testserver/api/v1/users/{user.username}/",
             "name": user.name,
+            "email": user.email,
+            "is_active": True,
+            "is_staff": False,
         }
