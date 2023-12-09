@@ -24,3 +24,6 @@ class User(AbstractUser):
 
         """
         return reverse("users:detail", kwargs={"username": self.username})
+
+    def get_dict(self) -> dict:
+        return {field.name: getattr(self, field.name) for field in self._meta.fields}
