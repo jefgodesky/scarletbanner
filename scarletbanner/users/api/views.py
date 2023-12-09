@@ -12,7 +12,7 @@ from rest_framework.mixins import (
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from scarletbanner.utils.permissions import IsAuthenticated, IsSelfOrStaff
+from scarletbanner.utils.permissions import IsAuthenticated, IsSelfOrStaff, is_self_or_staff
 
 from .serializers import UserCreateSerializer, UserPublicSerializer, UserSerializer
 
@@ -83,7 +83,17 @@ class UserViewSet(
         return super().get_permissions()
 
     def get_queryset(self, *args, **kwargs):
-        return User.objects.all()
+        return User.objects.all().order_by("date_joined")
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serialized_data = []
+        for obj in queryset:
+            show_full = is_self_or_staff(request.user, obj)
+            serializer_class = UserSerializer if show_full else UserPublicSerializer
+            serializer = serializer_class(obj, context={"request": request})
+            serialized_data.append(serializer.data)
+        return Response(serialized_data, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()

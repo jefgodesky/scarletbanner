@@ -52,6 +52,33 @@ class TestUserViewSet:
         view = self.request(url, "retrieve", "get", subj, api_rf, obj)
         return view.retrieve(view.request)
 
+    def list(self, user: User | AnonymousUser, api_rf: APIRequestFactory):
+        num = 3
+        users = [UserFactory() for _ in range(num)]
+        if not user.is_anonymous:
+            users.insert(0, user)
+        view = self.request("/fake-url/", "list", "get", user, api_rf)
+        users = sorted(users, key=lambda u: u.date_joined)
+        return view.list(view.request), users
+
+    @staticmethod
+    def assert_public(user, data):
+        assert data["username"] == user.username
+        assert data["url"] == f"http://testserver/api/v1/users/{user.username}/"
+        assert data["is_active"] == user.is_active
+        assert data["is_staff"] == user.is_staff
+        assert "name" not in data
+        assert "email" not in data
+
+    @staticmethod
+    def assert_full(user, data):
+        assert data["username"] == user.username
+        assert data["name"] == user.name
+        assert data["email"] == user.email
+        assert data["url"] == f"http://testserver/api/v1/users/{user.username}/"
+        assert data["is_active"] == user.is_active
+        assert data["is_staff"] == user.is_staff
+
     def destroy(self, subj: User | AnonymousUser, obj: User, api_rf: APIRequestFactory):
         url = f"/fake-url/{obj.username}/"
         view = self.request(url, "destroy", "delete", subj, api_rf, obj)
@@ -102,51 +129,55 @@ class TestUserViewSet:
     def test_retrieve_anon(self, user: User, api_rf):
         response = self.retrieve(AnonymousUser(), user, api_rf)
         assert response.status_code == 200
-        assert response.data == {
-            "username": user.username,
-            "url": f"http://testserver/api/v1/users/{user.username}/",
-            "is_active": True,
-            "is_staff": False,
-        }
+        self.assert_public(user, response.data)
 
     @pytest.mark.django_db
     def test_retrieve_self(self, user: User, api_rf):
         response = self.retrieve(user, user, api_rf)
         assert response.status_code == 200
-        assert response.data == {
-            "username": user.username,
-            "name": user.name,
-            "email": user.email,
-            "url": f"http://testserver/api/v1/users/{user.username}/",
-            "is_active": True,
-            "is_staff": False,
-        }
+        self.assert_full(user, response.data)
 
     @pytest.mark.django_db
     def test_retrieve_other(self, user: User, api_rf):
         other = UserFactory()
         response = self.retrieve(other, user, api_rf)
         assert response.status_code == 200
-        assert response.data == {
-            "username": user.username,
-            "url": f"http://testserver/api/v1/users/{user.username}/",
-            "is_active": True,
-            "is_staff": False,
-        }
+        self.assert_public(user, response.data)
 
     @pytest.mark.django_db
-    def test_retrieve_staff(self, user: User, api_rf):
+    def test_retrieve_staff(self, user: User, api_rf: APIRequestFactory):
         staff = UserFactory(is_staff=True)
         response = self.retrieve(staff, user, api_rf)
         assert response.status_code == 200
-        assert response.data == {
-            "username": user.username,
-            "name": user.name,
-            "email": user.email,
-            "url": f"http://testserver/api/v1/users/{user.username}/",
-            "is_active": True,
-            "is_staff": False,
-        }
+        self.assert_full(user, response.data)
+
+    @pytest.mark.django_db
+    def test_list_anon(self, api_rf: APIRequestFactory):
+        response, users = self.list(AnonymousUser(), api_rf)
+        assert response.status_code == 200
+        assert len(response.data) == len(users)
+        for i in range(len(users)):
+            self.assert_public(users[i], response.data[i])
+
+    @pytest.mark.django_db
+    def test_list_user(self, user: User, api_rf: APIRequestFactory):
+        response, users = self.list(user, api_rf)
+        assert response.status_code == 200
+        assert len(response.data) == len(users)
+        for i in range(len(users)):
+            if users[i].username == user.username:
+                self.assert_full(users[i], response.data[i])
+            else:
+                self.assert_public(users[i], response.data[i])
+
+    @pytest.mark.django_db
+    def test_list_staff(self, api_rf: APIRequestFactory):
+        staff = UserFactory(is_staff=True)
+        response, users = self.list(staff, api_rf)
+        assert response.status_code == 200
+        assert len(response.data) == len(users)
+        for i in range(len(users)):
+            self.assert_full(users[i], response.data[i])
 
     @pytest.mark.django_db
     def test_destroy_anon(self, user: User, api_rf: APIRequestFactory):

@@ -1,5 +1,14 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import BasePermission
+
+User = get_user_model()
+
+
+def is_self_or_staff(subj: User | AnonymousUser, obj: User):
+    is_user = subj == obj
+    return is_user or subj.is_staff
 
 
 class IsAuthenticated(BasePermission):
@@ -11,4 +20,4 @@ class IsAuthenticated(BasePermission):
 
 class IsSelfOrStaff(BasePermission):
     def has_object_permission(self, request, view, obj):
-        return request.user == obj or request.user.is_staff
+        return is_self_or_staff(request.user, obj)
