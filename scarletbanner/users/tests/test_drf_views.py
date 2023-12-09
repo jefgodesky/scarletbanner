@@ -61,10 +61,12 @@ class TestUserViewSet:
         users = sorted(users, key=lambda u: u.date_joined)
         return view.list(view.request), users
 
-    def update(self, subj: User | AnonymousUser, obj: User, update: dict, api_rf: APIRequestFactory):
+    def update(
+        self, subj: User | AnonymousUser, obj: User, update: dict, api_rf: APIRequestFactory, partial: bool = False
+    ):
         url = f"/fake-url/{obj.username}/"
         view = self.request(url, "update", "put", subj, api_rf, obj, update)
-        return view.update(view.request)
+        return view.update(view.request) if not partial else view.partial_update(view.request)
 
     def destroy(self, subj: User | AnonymousUser, obj: User, api_rf: APIRequestFactory):
         url = f"/fake-url/{obj.username}/"
@@ -89,24 +91,39 @@ class TestUserViewSet:
         assert data["is_active"] == user.is_active
         assert data["is_staff"] == user.is_staff
 
-    def assert_update_success(self, subj: User | AnonymousUser, obj: User, api_rf: APIRequestFactory):
-        update = obj.get_dict()
-        update["username"] = "tester" if update["username"] != "tester" else "other"
-        response = self.update(subj, obj, update, api_rf)
+    @staticmethod
+    def make_test_update(user: User, partial: bool = False) -> dict:
+        new_username = "tester" if user.username != "tester" else "retset"
+        if partial:
+            return {"username": new_username}
+        else:
+            update = user.get_dict()
+            update["username"] = new_username
+            return update
+
+    def assert_update_success(
+        self, subj: User | AnonymousUser, obj: User, api_rf: APIRequestFactory, partial: bool = False
+    ):
+        update = self.make_test_update(obj, partial)
+        response = self.update(subj, obj, update, api_rf, partial)
         obj.refresh_from_db()
         assert response.status_code == 200
         assert obj.username == update["username"]
         self.assert_full(obj, response.data)
 
     def assert_update_failure(
-        self, subj: User | AnonymousUser, obj: User, expected_status: int, api_rf: APIRequestFactory
+        self,
+        subj: User | AnonymousUser,
+        obj: User,
+        expected_status: int,
+        api_rf: APIRequestFactory,
+        partial: bool = False,
     ):
-        update = obj.get_dict()
-        update["username"] = "tester" if update["username"] != "tester" else "other"
+        update = self.make_test_update(obj, partial)
         with pytest.raises(PermissionDenied):
-            response = self.update(subj, obj, update, api_rf)
+            response = self.update(subj, obj, update, api_rf, partial)
             obj.refresh_from_db()
-            assert response.status_code == 403
+            assert response.status_code == expected_status
             assert obj.username != update["username"]
 
     def test_get_queryset(self, user: User, api_rf: APIRequestFactory):
@@ -221,6 +238,24 @@ class TestUserViewSet:
     def test_update_staff(self, user: User, api_rf: APIRequestFactory):
         staff = UserFactory(is_staff=True)
         self.assert_update_success(staff, user, api_rf)
+
+    @pytest.mark.django_db
+    def test_partial_update_anon(self, user: User, api_rf: APIRequestFactory):
+        self.assert_update_failure(AnonymousUser(), user, 401, api_rf, True)
+
+    @pytest.mark.django_db
+    def test_partial_update_self(self, user: User, api_rf: APIRequestFactory):
+        self.assert_update_success(user, user, api_rf, True)
+
+    @pytest.mark.django_db
+    def test_partial_update_other(self, user: User, api_rf: APIRequestFactory):
+        other = UserFactory()
+        self.assert_update_failure(other, user, 403, api_rf, True)
+
+    @pytest.mark.django_db
+    def test_partial_update_staff(self, user: User, api_rf: APIRequestFactory):
+        staff = UserFactory(is_staff=True)
+        self.assert_update_success(staff, user, api_rf, True)
 
     @pytest.mark.django_db
     def test_destroy_anon(self, user: User, api_rf: APIRequestFactory):
