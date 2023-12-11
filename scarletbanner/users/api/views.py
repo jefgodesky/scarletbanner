@@ -25,10 +25,21 @@ User = get_user_model()
         description="Create a new user with the given username, password, and "
         "email. You won’t be able to log in with this user until "
         "you have verified your email address.",
+        auth=[],
     ),
-    list=extend_schema(summary="List all users", description="This endpoint returns a list of all users."),
+    list=extend_schema(
+        summary="List all users",
+        description="This endpoint returns a list of all users. You will "
+        "only get `name` and `email` fields for your own account (or if "
+        "you have staff permissions).",
+        auth=[],
+    ),
     retrieve=extend_schema(
-        summary="Retrieve a user", description="This endpoint returns the user with the given username."
+        summary="Retrieve a user",
+        description="This endpoint returns the user with the given username. "
+        "You will only get `name` and `email` fields for your own account (or "
+        "if you have staff permissions).",
+        auth=[],
     ),
     update=extend_schema(
         summary="Update a user",
@@ -80,7 +91,7 @@ class UserViewSet(
         self_or_staff = ["update", "partial_update", "destroy", "me"]
         if self.action in self_or_staff:
             return [IsAuthenticated(), IsSelfOrStaff()]
-        return super().get_permissions()
+        return []
 
     def get_queryset(self, *args, **kwargs):
         return User.objects.all().order_by("date_joined")
