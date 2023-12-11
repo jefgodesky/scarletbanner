@@ -6,6 +6,7 @@ from django.views import defaults as default_views
 from django.views.generic import TemplateView
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from rest_framework import permissions
 from rest_framework.authtoken.views import ObtainAuthToken
 
 
@@ -19,6 +20,15 @@ from rest_framework.authtoken.views import ObtainAuthToken
     auth=[],
 )
 class DocumentedObtainAuthToken(ObtainAuthToken):
+    pass
+
+
+@extend_schema(
+    summary="API Documentation",
+    description="This endpoint returns documentation of the API in the OpenAPI specification.",
+    auth=[],
+)
+class DocumentedAPIView(SpectacularAPIView):
     pass
 
 
@@ -39,7 +49,7 @@ urlpatterns += [
     path("api/v1/", include("config.api_router")),
     # DRF auth token
     path("api/v1/token/", DocumentedObtainAuthToken.as_view(), name="obtain-auth-token"),
-    path("api/v1/schema/", SpectacularAPIView.as_view(), name="api-schema"),
+    path("api/v1/schema/", DocumentedAPIView.as_view(permission_classes=(permissions.AllowAny,)), name="api-schema"),
     path(
         "api/v1/docs/",
         SpectacularSwaggerView.as_view(url_name="api-schema"),
