@@ -74,4 +74,6 @@ services:
     depends_on:
       - django
     volumes:
+      - ${{ secrets.NGINX_CONF_PATH }}:/etc/nginx/nginx.conf
+      - ${{ secrets.DESIGN_SYSTEM_PATH }}:/design
       - production_django_media:/usr/share/nginx/media:ro
