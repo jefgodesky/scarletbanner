@@ -68,4 +68,5 @@ jobs:
           script: |
             cd ${{ secrets.DROPLET_PROJECT_PATH }}
             git pull origin main
+            docker-compose -f production.yml down
             docker-compose -f production.yml up -d --build
