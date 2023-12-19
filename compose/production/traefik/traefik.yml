@@ -84,7 +84,7 @@ http:
     nginx-service:
       loadBalancer:
         servers:
-          - url: http://nginx:5000
+          - url: http://nginx:80
 
     flower:
       loadBalancer:
