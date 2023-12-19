@@ -41,6 +41,14 @@ http:
         # https://docs.traefik.io/master/routing/routers/#certresolver
         certResolver: letsencrypt
 
+    design-router:
+      rule: 'Host (`design.scarletbanner.com`)'
+      entryPoints:
+        - web-secure
+      service: nginx-service
+      tls:
+        certResolver: letsencrypt
+
     flower-secure-router:
       rule: 'Host(`scarletbanner.com`)'
       entryPoints:
@@ -72,6 +80,11 @@ http:
       loadBalancer:
         servers:
           - url: http://django:5000
+
+    nginx-service:
+      loadBalancer:
+        servers:
+          - url: http://nginx:5000
 
     flower:
       loadBalancer:
