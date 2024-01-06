@@ -52,7 +52,7 @@ urlpatterns += [
     path("api/v1/schema/", DocumentedAPIView.as_view(permission_classes=(permissions.AllowAny,)), name="api-schema"),
     path(
         "api/v1/docs/",
-        SpectacularSwaggerView.as_view(url_name="api-schema"),
+        SpectacularSwaggerView.as_view(url_name="api-schema", permission_classes=(permissions.AllowAny,)),
         name="api-docs",
     ),
 ]
