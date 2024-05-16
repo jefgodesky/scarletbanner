@@ -307,3 +307,4 @@ scarletbanner/media/
 
 # IDE Stuff
 .idea
+.idea/*
