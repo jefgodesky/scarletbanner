@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from typing import List
 
 from scarletbanner.users.models import User
 
@@ -28,6 +29,10 @@ class WikiPage(models.Model):
     @property
     def created_by(self) -> User:
         return self.original.editor
+
+    @property
+    def editors(self) -> List[User]:
+        return [revision.editor for revision in self.revisions.all()]
 
     def __str__(self) -> str:
         return self.latest.title

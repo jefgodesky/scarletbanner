@@ -46,6 +46,11 @@ class TestWikiPage:
         page, _, _ = updated_wiki_page
         assert page.created_by == page.original.editor
 
+    def test_editors(self, updated_wiki_page):
+        page, _, second = updated_wiki_page
+        expected = [page.created_by, second]
+        assert page.editors == expected
+
 
 @pytest.mark.django_db
 class TestRevision:
