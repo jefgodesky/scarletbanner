@@ -28,11 +28,14 @@ class TestWikiPage:
         page = revision.page
         assert page.latest.id == revision.id
 
-    def test_latest_title(self, wiki_page):
+    def test_title(self, wiki_page):
         updated_title = "Updated Test Page"
         wiki_page.update(title=updated_title)
         actual = WikiPage.objects.get(id=wiki_page.id)
         assert actual.title == updated_title
+
+    def test_created(self, wiki_page):
+        assert wiki_page.created == wiki_page.latest.timestamp
 
 
 @pytest.mark.django_db

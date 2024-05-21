@@ -10,6 +10,11 @@ class WikiPage(models.Model):
     def title(self):
         return self.latest.title
 
+    @property
+    def created(self):
+        first = self.revisions.order_by('timestamp').first()
+        return first.timestamp
+
     def __str__(self):
         return self.latest.title
 
