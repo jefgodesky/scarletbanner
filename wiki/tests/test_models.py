@@ -5,20 +5,20 @@ from wiki.models import WikiPage, Revision
 @pytest.mark.django_db
 class TestWikiPage:
     def test_create_read(self, wiki_page):
-        page, title = wiki_page
+        page, title, _ = wiki_page
         actual = WikiPage.objects.get(id=page.id)
         assert actual.title == title
 
     def test_str(self, wiki_page):
-        page, title = wiki_page
+        page, title, _ = wiki_page
         assert str(page) == title
 
     def test_update(self, updated_wiki_page):
-        page, title = updated_wiki_page
+        page, title, _ = updated_wiki_page
         assert page.title == title
 
     def test_delete(self, wiki_page):
-        page, _ = wiki_page
+        page, _, _ = wiki_page
         wiki_page_id = page.id
         page.delete()
         with pytest.raises(WikiPage.DoesNotExist):
@@ -30,16 +30,16 @@ class TestWikiPage:
         assert page.latest == revision
 
     def test_original(self, updated_wiki_page):
-        page, _ = updated_wiki_page
+        page, _, _ = updated_wiki_page
         orig = page.revisions.order_by('timestamp', 'id').first()
         assert page.original == orig
 
     def test_updated(self, updated_wiki_page):
-        page, _ = updated_wiki_page
+        page, _, _ = updated_wiki_page
         assert page.updated == page.latest.timestamp
 
     def test_created(self, updated_wiki_page):
-        page, _ = updated_wiki_page
+        page, _, _ = updated_wiki_page
         assert page.created == page.original.timestamp
 
 
