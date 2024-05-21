@@ -13,8 +13,7 @@ class TestWikiPage:
 
     def test_update(self, wiki_page):
         updated_title = "Updated Test Page"
-        wiki_page.title = updated_title
-        wiki_page.save()
+        wiki_page.update(title=updated_title)
         updated_page = WikiPage.objects.get(id=wiki_page.id)
         assert updated_page.title == updated_title
 
@@ -23,10 +22,17 @@ class TestWikiPage:
         wiki_page.delete()
         with pytest.raises(WikiPage.DoesNotExist):
             WikiPage.objects.get(id=wiki_page_id)
+            Revision.objects.get(wiki_page=wiki_page_id)
 
     def test_latest(self, revision):
         page = revision.page
         assert page.latest.id == revision.id
+
+    def test_latest_title(self, wiki_page):
+        updated_title = "Updated Test Page"
+        wiki_page.update(title=updated_title)
+        actual = WikiPage.objects.get(id=wiki_page.id)
+        assert actual.title == updated_title
 
 
 @pytest.mark.django_db

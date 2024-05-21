@@ -4,7 +4,7 @@ from wiki.models import WikiPage, Revision
 
 @pytest.fixture
 def wiki_page():
-    return WikiPage.objects.create(title="Test Page")
+    return WikiPage.create("Test Page")
 
 
 @pytest.fixture
