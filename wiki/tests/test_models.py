@@ -24,6 +24,10 @@ class TestWikiPage:
         with pytest.raises(WikiPage.DoesNotExist):
             WikiPage.objects.get(id=wiki_page_id)
 
+    def test_latest(self, revision):
+        page = revision.page
+        assert page.latest.id == revision.id
+
 
 @pytest.mark.django_db
 class TestRevision:

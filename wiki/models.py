@@ -4,6 +4,10 @@ from django.db import models
 class WikiPage(models.Model):
     title = models.CharField(max_length=255)
 
+    @property
+    def latest(self):
+        return self.revisions.order_by('-timestamp').first()
+
     def __str__(self):
         return self.title
 
