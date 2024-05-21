@@ -19,6 +19,10 @@ class WikiPage(models.Model):
         return self.latest.title
 
     @property
+    def body(self) -> str:
+        return self.latest.body
+
+    @property
     def updated(self) -> "datetime":
         return self.latest.timestamp
 
@@ -37,13 +41,23 @@ class WikiPage(models.Model):
     def __str__(self) -> str:
         return self.latest.title
 
-    def update(self, title, editor) -> None:
-        Revision.objects.create(title=title, page=self, editor=editor)
+    def update(self, title, body, editor) -> None:
+        Revision.objects.create(
+            title=title,
+            body=body,
+            page=self,
+            editor=editor
+        )
 
     @classmethod
-    def create(cls, title, editor) -> "WikiPage":
+    def create(cls, title, body, editor) -> "WikiPage":
         page = cls.objects.create()
-        Revision.objects.create(page=page, title=title, editor=editor)
+        Revision.objects.create(
+            page=page,
+            title=title,
+            body=body,
+            editor=editor,
+        )
         return page
 
 
