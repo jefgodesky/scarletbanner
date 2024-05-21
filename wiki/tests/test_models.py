@@ -57,6 +57,7 @@ class TestRevision:
     def test_create_read(self, revision):
         actual = Revision.objects.get(id=revision.id)
         assert actual.title == "Test Page"
+        assert actual.body == "This is a test."
 
     def test_str(self, revision):
         assert str(revision) == "Test Page"

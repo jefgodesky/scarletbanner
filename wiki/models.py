@@ -49,6 +49,7 @@ class WikiPage(models.Model):
 
 class Revision(models.Model):
     title = models.CharField(max_length=255)
+    body = models.TextField(null=True, blank=True)
     page = models.ForeignKey(WikiPage, related_name="revisions", on_delete=models.CASCADE)
     editor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="revisions", on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now=True)
