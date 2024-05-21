@@ -42,6 +42,10 @@ class TestWikiPage:
         page, _, _ = updated_wiki_page
         assert page.created == page.original.timestamp
 
+    def test_created_by(self, updated_wiki_page):
+        page, _, _ = updated_wiki_page
+        assert page.created_by == page.original.editor
+
 
 @pytest.mark.django_db
 class TestRevision:

@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from scarletbanner.users.models import User
+
 
 class WikiPage(models.Model):
     @property
@@ -22,6 +24,10 @@ class WikiPage(models.Model):
     @property
     def created(self):
         return self.original.timestamp
+
+    @property
+    def created_by(self) -> User:
+        return self.original.editor
 
     def __str__(self):
         return self.latest.title

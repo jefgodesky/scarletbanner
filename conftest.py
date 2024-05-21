@@ -12,3 +12,8 @@ def media_storage(settings, tmpdir):
 @pytest.fixture
 def user(db) -> User:
     return UserFactory()
+
+
+@pytest.fixture
+def other(db) -> User:
+    return UserFactory()

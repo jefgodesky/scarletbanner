@@ -9,11 +9,11 @@ def wiki_page(user):
 
 
 @pytest.fixture
-def updated_wiki_page(wiki_page, user):
+def updated_wiki_page(wiki_page, user, other):
     page, _, _ = wiki_page
     updated_title = "Updated Test Page"
-    page.update(title=updated_title, editor=user)
-    return page, updated_title, user
+    page.update(title=updated_title, editor=other)
+    return page, updated_title, other
 
 
 @pytest.fixture
