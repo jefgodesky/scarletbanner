@@ -1,5 +1,5 @@
 import pytest
-from wiki.models import WikiPage
+from wiki.models import WikiPage, Revision
 
 
 @pytest.mark.django_db
@@ -23,3 +23,13 @@ class TestWikiPage:
         wiki_page.delete()
         with pytest.raises(WikiPage.DoesNotExist):
             WikiPage.objects.get(id=wiki_page_id)
+
+
+@pytest.mark.django_db
+class TestRevision:
+    def test_create_read(self, revision):
+        actual = Revision.objects.get(id=revision.id)
+        assert actual.title == "Test Page"
+
+    def test_str(self, revision):
+        assert str(revision) == "Test Page"
