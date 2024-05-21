@@ -3,6 +3,7 @@ version: '3'
 volumes:
   scarletbanner_local_postgres_data: {}
   scarletbanner_local_postgres_data_backups: {}
+  scarletbanner_local_redis_data: {}
 
 services:
   django: &django
@@ -62,6 +63,8 @@ services:
   redis:
     image: redis:6
     container_name: scarletbanner_local_redis
+    volumes:
+      - scarletbanner_local_redis_data:/data
 
   celeryworker:
     <<: *django
