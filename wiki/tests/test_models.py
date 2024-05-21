@@ -5,37 +5,34 @@ from wiki.models import WikiPage, Revision
 @pytest.mark.django_db
 class TestWikiPage:
     def test_create_read(self, wiki_page):
-        actual = WikiPage.objects.get(id=wiki_page.id)
-        assert actual.title == "Test Page"
+        page, title = wiki_page
+        actual = WikiPage.objects.get(id=page.id)
+        assert actual.title == title
 
     def test_str(self, wiki_page):
-        assert str(wiki_page) == "Test Page"
+        page, title = wiki_page
+        assert str(page) == title
 
-    def test_update(self, wiki_page):
-        updated_title = "Updated Test Page"
-        wiki_page.update(title=updated_title)
-        updated_page = WikiPage.objects.get(id=wiki_page.id)
-        assert updated_page.title == updated_title
+    def test_update(self, updated_wiki_page):
+        page, title = updated_wiki_page
+        assert page.title == title
 
     def test_delete(self, wiki_page):
-        wiki_page_id = wiki_page.id
-        wiki_page.delete()
+        page, _ = wiki_page
+        wiki_page_id = page.id
+        page.delete()
         with pytest.raises(WikiPage.DoesNotExist):
             WikiPage.objects.get(id=wiki_page_id)
             Revision.objects.get(wiki_page=wiki_page_id)
 
     def test_latest(self, revision):
         page = revision.page
-        assert page.latest.id == revision.id
+        assert page.latest == revision
 
-    def test_title(self, wiki_page):
-        updated_title = "Updated Test Page"
-        wiki_page.update(title=updated_title)
-        actual = WikiPage.objects.get(id=wiki_page.id)
-        assert actual.title == updated_title
-
-    def test_created(self, wiki_page):
-        assert wiki_page.created == wiki_page.latest.timestamp
+    def test_original(self, updated_wiki_page):
+        page, _ = updated_wiki_page
+        orig = page.revisions.order_by('timestamp', 'id').first()
+        assert page.original == orig
 
 
 @pytest.mark.django_db

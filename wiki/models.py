@@ -4,16 +4,15 @@ from django.db import models
 class WikiPage(models.Model):
     @property
     def latest(self):
-        return self.revisions.order_by('-timestamp').first()
+        return self.revisions.order_by('-timestamp', '-id').first()
+
+    @property
+    def original(self):
+        return self.revisions.order_by('timestamp', 'id').first()
 
     @property
     def title(self):
         return self.latest.title
-
-    @property
-    def created(self):
-        first = self.revisions.order_by('timestamp').first()
-        return first.timestamp
 
     def __str__(self):
         return self.latest.title
