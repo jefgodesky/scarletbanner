@@ -18,6 +18,10 @@ class WikiPage(models.Model):
     def updated(self):
         return self.latest.timestamp
 
+    @property
+    def created(self):
+        return self.original.timestamp
+
     def __str__(self):
         return self.latest.title
 
