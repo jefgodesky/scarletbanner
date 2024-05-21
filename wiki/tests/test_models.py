@@ -34,6 +34,10 @@ class TestWikiPage:
         orig = page.revisions.order_by('timestamp', 'id').first()
         assert page.original == orig
 
+    def test_updated(self, updated_wiki_page):
+        page, _ = updated_wiki_page
+        assert page.updated == page.latest.timestamp
+
 
 @pytest.mark.django_db
 class TestRevision:
