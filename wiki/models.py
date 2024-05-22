@@ -24,6 +24,10 @@ class WikiPage(models.Model):
         return self.latest.body
 
     @property
+    def owner(self) -> User or None:
+        return self.latest.owner
+
+    @property
     def updated(self) -> datetime:
         return self.latest.timestamp
 

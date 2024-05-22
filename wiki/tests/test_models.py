@@ -10,6 +10,7 @@ class TestWikiPage:
         actual = WikiPage.objects.get(id=page.id)
         assert actual.title == title
         assert actual.body == body
+        assert actual.owner is None
 
     def test_str(self, wiki_page):
         page, title, _, _ = wiki_page
@@ -19,6 +20,7 @@ class TestWikiPage:
         page, title, body, _ = updated_wiki_page
         assert page.title == title
         assert page.body == body
+        assert page.owner is None
 
     def test_delete(self, wiki_page):
         page, _, _, _ = wiki_page
