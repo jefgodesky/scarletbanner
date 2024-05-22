@@ -8,11 +8,11 @@ from scarletbanner.users.models import User
 class WikiPage(models.Model):
     @property
     def latest(self) -> "Revision":
-        return self.revisions.order_by('-timestamp', '-id').first()
+        return self.revisions.order_by("-timestamp", "-id").first()
 
     @property
     def original(self) -> "Revision":
-        return self.revisions.order_by('timestamp', 'id').first()
+        return self.revisions.order_by("timestamp", "id").first()
 
     @property
     def title(self) -> str:
@@ -42,12 +42,7 @@ class WikiPage(models.Model):
         return self.latest.title
 
     def update(self, title, body, editor) -> None:
-        Revision.objects.create(
-            title=title,
-            body=body,
-            page=self,
-            editor=editor
-        )
+        Revision.objects.create(title=title, body=body, page=self, editor=editor)
 
     @classmethod
     def create(cls, title, body, editor) -> "WikiPage":

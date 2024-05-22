@@ -33,7 +33,7 @@ class TestWikiPage:
 
     def test_original(self, updated_wiki_page):
         page, _, _, _ = updated_wiki_page
-        orig = page.revisions.order_by('timestamp', 'id').first()
+        orig = page.revisions.order_by("timestamp", "id").first()
         assert page.original == orig
 
     def test_updated(self, updated_wiki_page):

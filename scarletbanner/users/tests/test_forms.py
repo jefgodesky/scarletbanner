@@ -1,6 +1,7 @@
 """
 Module for all Form Tests.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from scarletbanner.users.forms import UserAdminCreationForm

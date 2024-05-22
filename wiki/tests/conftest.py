@@ -6,11 +6,16 @@ from wiki.models import WikiPage, Revision
 def wiki_page(user):
     title = "Test Page"
     body = "This is the original body."
-    return WikiPage.create(
-        title=title,
-        body=body,
-        editor=user,
-    ), title, body, user
+    return (
+        WikiPage.create(
+            title=title,
+            body=body,
+            editor=user,
+        ),
+        title,
+        body,
+        user,
+    )
 
 
 @pytest.fixture
