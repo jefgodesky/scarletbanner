@@ -1,6 +1,6 @@
 import pytest
 
-from wiki.models import Revision, WikiPage
+from wiki.models import WikiPage
 
 
 @pytest.fixture
@@ -31,9 +31,4 @@ def updated_wiki_page(wiki_page, user, other):
 @pytest.fixture
 def revision(wiki_page, user):
     page, _, _, _ = wiki_page
-    return Revision.objects.create(
-        title="Test Page",
-        body="This is a test.",
-        editor=user,
-        page=page,
-    )
+    return page.original
