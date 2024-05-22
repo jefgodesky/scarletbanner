@@ -61,6 +61,11 @@ class TestRevision:
         actual = Revision.objects.get(id=revision.id)
         assert actual.title == "Test Page"
         assert actual.body == "This is the original body."
+        assert actual.owner is None
+
+    def test_create_with_owner(self, owned_wiki_page):
+        page, _, _, _, owner = owned_wiki_page
+        assert page.original.owner == owner
 
     def test_str(self, revision):
         assert str(revision) == "Test Page"

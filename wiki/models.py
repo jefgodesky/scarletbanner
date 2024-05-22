@@ -46,13 +46,14 @@ class WikiPage(models.Model):
         Revision.objects.create(title=title, body=body, page=self, editor=editor)
 
     @classmethod
-    def create(cls, title, body, editor) -> "WikiPage":
+    def create(cls, title, body, editor, owner=None) -> "WikiPage":
         page = cls.objects.create()
         Revision.objects.create(
             page=page,
             title=title,
             body=body,
             editor=editor,
+            owner=owner,
         )
         return page
 
@@ -62,6 +63,9 @@ class Revision(models.Model):
     body = models.TextField(null=True, blank=True)
     page = models.ForeignKey(WikiPage, related_name="revisions", on_delete=models.CASCADE)
     editor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="revisions", on_delete=models.CASCADE)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name="owned_pages", on_delete=models.CASCADE, null=True, blank=True
+    )
     timestamp = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:

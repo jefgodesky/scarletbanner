@@ -20,6 +20,24 @@ def wiki_page(user):
 
 
 @pytest.fixture
+def owned_wiki_page(user, other):
+    title = "Owned Page"
+    body = "This is an owned page."
+    return (
+        WikiPage.create(
+            title=title,
+            body=body,
+            editor=user,
+            owner=other,
+        ),
+        title,
+        body,
+        user,
+        other,
+    )
+
+
+@pytest.fixture
 def updated_wiki_page(wiki_page, user, other):
     page, _, _, _ = wiki_page
     updated_title = "Updated Test Page"
