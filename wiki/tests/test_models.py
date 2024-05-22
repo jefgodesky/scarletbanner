@@ -107,6 +107,41 @@ class TestWikiPage:
         reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
         assert page.can_read(reader) == expected
 
+    @pytest.mark.parametrize(
+        "permission, reader_fixture, expected",
+        [
+            (PermissionLevel.PUBLIC, None, True),
+            (PermissionLevel.PUBLIC, "other", True),
+            (PermissionLevel.PUBLIC, "user", True),
+            (PermissionLevel.PUBLIC, "owner", True),
+            (PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, "other", True),
+            (PermissionLevel.MEMBERS_ONLY, "user", True),
+            (PermissionLevel.MEMBERS_ONLY, "owner", True),
+            (PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.EDITORS_ONLY, "user", True),
+            (PermissionLevel.EDITORS_ONLY, "owner", True),
+            (PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.ADMIN_ONLY, "owner", False),
+            (PermissionLevel.ADMIN_ONLY, "admin", True),
+        ],
+    )
+    def test_can_write(self, request, permission, reader_fixture, expected, user, owner):
+        page = WikiPage.create(title="Test", body="Test", editor=user, owner=owner, write=permission)
+        reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
+        assert page.can_write(reader) == expected
+
 
 @pytest.mark.django_db
 class TestRevision:

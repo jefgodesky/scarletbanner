@@ -55,12 +55,12 @@ class WikiPage(models.Model):
     def __str__(self) -> str:
         return self.latest.title
 
-    def can_read(self, user: User = None) -> bool:
+    def evaluate_permission(self, permission: str, user: User = None) -> bool:
         is_admin = user is not None and user.is_staff
         is_owner = self.owner == user
         is_editor = user in self.editors
 
-        match self.read:
+        match permission:
             case PermissionLevel.PUBLIC.value:
                 return True
             case PermissionLevel.MEMBERS_ONLY.value:
@@ -71,6 +71,12 @@ class WikiPage(models.Model):
                 return is_admin or is_owner
             case _:
                 return is_admin
+
+    def can_read(self, user: User = None) -> bool:
+        return self.evaluate_permission(self.read, user)
+
+    def can_write(self, user: User = None) -> bool:
+        return self.evaluate_permission(self.write, user)
 
     def update(self, title, body, editor, read: PermissionLevel, write: PermissionLevel, owner=None) -> None:
         Revision.objects.create(
