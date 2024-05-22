@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 
 from scarletbanner.users.models import User
+from wiki.permission_levels import PermissionLevel
 
 
 class WikiPage(models.Model):
@@ -26,6 +27,14 @@ class WikiPage(models.Model):
     @property
     def owner(self) -> User or None:
         return self.latest.owner
+
+    @property
+    def read(self) -> str:
+        return self.latest.read
+
+    @property
+    def write(self) -> str:
+        return self.latest.write
 
     @property
     def updated(self) -> datetime:
@@ -69,6 +78,14 @@ class WikiPage(models.Model):
 
 
 class Revision(models.Model):
+    SECURITY_CHOICES = [
+        (PermissionLevel.PUBLIC.value, "Public"),
+        (PermissionLevel.MEMBERS_ONLY.value, "Members only"),
+        (PermissionLevel.EDITORS_ONLY.value, "Editors only"),
+        (PermissionLevel.OWNER_ONLY.value, "Owner only"),
+        (PermissionLevel.ADMIN_ONLY.value, "Admins only"),
+    ]
+
     title = models.CharField(max_length=255)
     body = models.TextField(null=True, blank=True)
     page = models.ForeignKey(WikiPage, related_name="revisions", on_delete=models.CASCADE)
@@ -76,6 +93,8 @@ class Revision(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, related_name="owned_pages", on_delete=models.CASCADE, null=True, blank=True
     )
+    read = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
+    write = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     timestamp = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:

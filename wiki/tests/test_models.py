@@ -1,6 +1,7 @@
 import pytest
 
 from wiki.models import Revision, WikiPage
+from wiki.permission_levels import PermissionLevel
 
 
 @pytest.mark.django_db
@@ -11,6 +12,8 @@ class TestWikiPage:
         assert actual.title == title
         assert actual.body == body
         assert actual.owner is None
+        assert actual.read == PermissionLevel.PUBLIC.value
+        assert actual.write == PermissionLevel.PUBLIC.value
 
     def test_str(self, wiki_page):
         page, title, _, _ = wiki_page
@@ -21,6 +24,8 @@ class TestWikiPage:
         assert page.title == title
         assert page.body == body
         assert page.owner is None
+        assert page.read == PermissionLevel.PUBLIC.value
+        assert page.write == PermissionLevel.PUBLIC.value
 
     def test_patch(self, wiki_page):
         page, title, body, editor = wiki_page
@@ -75,6 +80,8 @@ class TestRevision:
         assert actual.title == "Test Page"
         assert actual.body == "This is the original body."
         assert actual.owner is None
+        assert actual.read == PermissionLevel.PUBLIC.value
+        assert actual.write == PermissionLevel.PUBLIC.value
 
     def test_create_with_owner(self, owned_wiki_page):
         page, _, _, _, owner = owned_wiki_page
