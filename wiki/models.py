@@ -1,6 +1,7 @@
+import datetime
+
 from django.conf import settings
 from django.db import models
-from typing import List
 
 from scarletbanner.users.models import User
 
@@ -23,11 +24,11 @@ class WikiPage(models.Model):
         return self.latest.body
 
     @property
-    def updated(self) -> "datetime":
+    def updated(self) -> datetime:
         return self.latest.timestamp
 
     @property
-    def created(self) -> "datetime":
+    def created(self) -> datetime:
         return self.original.timestamp
 
     @property
@@ -35,7 +36,7 @@ class WikiPage(models.Model):
         return self.original.editor
 
     @property
-    def editors(self) -> List[User]:
+    def editors(self) -> list[User]:
         return [revision.editor for revision in self.revisions.all()]
 
     def __str__(self) -> str:

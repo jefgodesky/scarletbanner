@@ -1,5 +1,6 @@
 import pytest
-from wiki.models import WikiPage, Revision
+
+from wiki.models import Revision, WikiPage
 
 
 @pytest.fixture
