@@ -47,6 +47,15 @@ def updated_wiki_page(wiki_page, user, other):
 
 
 @pytest.fixture
+def updated_owned_wiki_page(owned_wiki_page):
+    page, _, _, editor, owner = owned_wiki_page
+    updated_title = "Updated Owned Test Page"
+    updated_body = "This is the updated body."
+    page.update(title=updated_title, body=updated_body, editor=editor, owner=editor)
+    return page, updated_title, updated_body, editor
+
+
+@pytest.fixture
 def revision(wiki_page, user):
     page, _, _, _ = wiki_page
     return page.original

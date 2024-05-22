@@ -43,6 +43,10 @@ class TestWikiPage:
         page, _, _, _ = updated_wiki_page
         assert page.updated == page.latest.timestamp
 
+    def test_updated_owned(self, updated_owned_wiki_page):
+        page, _, _, user = updated_owned_wiki_page
+        assert page.owner == user
+
     def test_created(self, updated_wiki_page):
         page, _, _, _ = updated_wiki_page
         assert page.created == page.original.timestamp

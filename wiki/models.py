@@ -46,8 +46,8 @@ class WikiPage(models.Model):
     def __str__(self) -> str:
         return self.latest.title
 
-    def update(self, title, body, editor) -> None:
-        Revision.objects.create(title=title, body=body, page=self, editor=editor)
+    def update(self, title, body, editor, owner=None) -> None:
+        Revision.objects.create(title=title, body=body, page=self, editor=editor, owner=owner)
 
     @classmethod
     def create(cls, title, body, editor, owner=None) -> "WikiPage":
