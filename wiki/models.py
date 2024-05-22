@@ -55,23 +55,64 @@ class WikiPage(models.Model):
     def __str__(self) -> str:
         return self.latest.title
 
-    def update(self, title, body, editor, owner=None) -> None:
-        Revision.objects.create(title=title, body=body, page=self, editor=editor, owner=owner)
+    def can_read(self, user: User = None) -> bool:
+        is_admin = user is not None and user.is_staff
+        is_owner = self.owner == user
+        is_editor = user in self.editors
 
-    def patch(self, editor, title=None, body=None, owner=None) -> None:
-        patch_title = self.latest.title if title is None else title
-        patch_body = self.latest.body if body is None else body
+        match self.read:
+            case PermissionLevel.PUBLIC.value:
+                return True
+            case PermissionLevel.MEMBERS_ONLY.value:
+                return user is not None
+            case PermissionLevel.EDITORS_ONLY.value:
+                return is_editor or is_admin or is_owner
+            case PermissionLevel.OWNER_ONLY.value:
+                return is_admin or is_owner
+            case _:
+                return is_admin
+
+    def update(self, title, body, editor, read: PermissionLevel, write: PermissionLevel, owner=None) -> None:
+        Revision.objects.create(
+            title=title, body=body, page=self, editor=editor, read=read.value, write=write.value, owner=owner
+        )
+
+    def patch(
+        self, editor, title=None, body=None, read: PermissionLevel = None, write: PermissionLevel = None, owner=None
+    ) -> None:
+        patch_title = self.title if title is None else title
+        patch_body = self.body if body is None else body
         patch_owner = self.owner if owner is None else owner
-        Revision.objects.create(title=patch_title, body=patch_body, page=self, editor=editor, owner=patch_owner)
+        patch_read = self.read if read is None else read.value
+        patch_write = self.write if write is None else write.value
+        Revision.objects.create(
+            title=patch_title,
+            body=patch_body,
+            page=self,
+            editor=editor,
+            read=patch_read,
+            write=patch_write,
+            owner=patch_owner,
+        )
 
     @classmethod
-    def create(cls, title, body, editor, owner=None) -> "WikiPage":
+    def create(
+        cls,
+        title,
+        body,
+        editor,
+        read: PermissionLevel = PermissionLevel.PUBLIC,
+        write: PermissionLevel = PermissionLevel.PUBLIC,
+        owner=None,
+    ) -> "WikiPage":
         page = cls.objects.create()
         Revision.objects.create(
             page=page,
             title=title,
             body=body,
             editor=editor,
+            read=read.value,
+            write=write.value,
             owner=owner,
         )
         return page
