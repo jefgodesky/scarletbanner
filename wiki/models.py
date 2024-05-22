@@ -49,6 +49,12 @@ class WikiPage(models.Model):
     def update(self, title, body, editor, owner=None) -> None:
         Revision.objects.create(title=title, body=body, page=self, editor=editor, owner=owner)
 
+    def patch(self, editor, title=None, body=None, owner=None) -> None:
+        patch_title = self.latest.title if title is None else title
+        patch_body = self.latest.body if body is None else body
+        patch_owner = self.owner if owner is None else owner
+        Revision.objects.create(title=patch_title, body=patch_body, page=self, editor=editor, owner=patch_owner)
+
     @classmethod
     def create(cls, title, body, editor, owner=None) -> "WikiPage":
         page = cls.objects.create()

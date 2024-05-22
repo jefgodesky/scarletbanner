@@ -22,6 +22,13 @@ class TestWikiPage:
         assert page.body == body
         assert page.owner is None
 
+    def test_patch(self, wiki_page):
+        page, title, body, editor = wiki_page
+        updated_title = "Updated Title"
+        page.patch(editor, title=updated_title)
+        assert page.title == updated_title
+        assert page.body == body
+
     def test_delete(self, wiki_page):
         page, _, _, _ = wiki_page
         wiki_page_id = page.id
