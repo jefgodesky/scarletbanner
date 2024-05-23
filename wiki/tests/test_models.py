@@ -16,6 +16,9 @@ class TestWikiPage:
         assert actual.read == PermissionLevel.PUBLIC.value
         assert actual.write == PermissionLevel.PUBLIC.value
 
+    def test_create_child(self, child_wiki_page):
+        assert isinstance(child_wiki_page.parent, WikiPage)
+
     def test_str(self, wiki_page):
         page, title, _, _, _ = wiki_page
         assert str(page) == title
@@ -26,8 +29,22 @@ class TestWikiPage:
         assert page.body == body
         assert page.slug == slug
         assert page.owner is None
+        assert page.parent is None
         assert page.read == PermissionLevel.PUBLIC.value
         assert page.write == PermissionLevel.PUBLIC.value
+
+    def test_update_child(self, wiki_page):
+        page, _, _, _, editor = wiki_page
+        parent = WikiPage.create(
+            title="Parent",
+            slug="parent",
+            body="This is the parent page.",
+            read=PermissionLevel.PUBLIC,
+            write=PermissionLevel.PUBLIC,
+            editor=editor,
+        )
+        page.patch(slug="parent/test", parent=parent, editor=editor)
+        assert page.parent == parent
 
     def test_update_not_allowed(self, user, other):
         page = WikiPage.create(title="Test", body="Test", editor=user, write=PermissionLevel.EDITORS_ONLY)
@@ -278,6 +295,7 @@ class TestRevision:
         assert actual.slug == "test"
         assert actual.body == "This is the original body."
         assert actual.owner is None
+        assert actual.parent is None
         assert actual.read == PermissionLevel.PUBLIC.value
         assert actual.write == PermissionLevel.PUBLIC.value
 

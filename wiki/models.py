@@ -34,6 +34,10 @@ class WikiPage(models.Model):
         return self.latest.owner
 
     @property
+    def parent(self) -> "WikiPage" or None:
+        return self.latest.parent
+
+    @property
     def read(self) -> str:
         return self.latest.read
 
@@ -87,7 +91,15 @@ class WikiPage(models.Model):
         return can_read and can_write_before and can_write_after
 
     def update(
-        self, title, body, editor, read: PermissionLevel, write: PermissionLevel, slug=None, owner=None
+        self,
+        title: str,
+        body: str,
+        editor: User,
+        read: PermissionLevel,
+        write: PermissionLevel,
+        slug=None,
+        parent: "WikiPage" = None,
+        owner: User or None = None,
     ) -> None:
         if not self.can_write(write.value, editor):
             return
@@ -102,21 +114,24 @@ class WikiPage(models.Model):
             read=read.value,
             write=write.value,
             owner=owner,
+            parent=parent,
         )
 
     def patch(
         self,
-        editor,
-        title=None,
-        slug=None,
-        body=None,
+        editor: User,
+        title: str = None,
+        slug: str = None,
+        body: str = None,
+        parent: "WikiPage" = None,
+        owner: User or None = None,
         read: PermissionLevel = None,
         write: PermissionLevel = None,
-        owner=None,
     ) -> None:
         patch_title = self.title if title is None else title
         patch_slug = self.slug if slug is None else slug
         patch_body = self.body if body is None else body
+        patch_parent = self.parent if parent is None else parent
         patch_owner = self.owner if owner is None else owner
         patch_read = self.read if read is None else read.value
         patch_write = self.write if write is None else write.value
@@ -128,23 +143,25 @@ class WikiPage(models.Model):
             title=patch_title,
             slug=patch_slug,
             body=patch_body,
+            parent=patch_parent,
+            owner=patch_owner,
             page=self,
             editor=editor,
             read=patch_read,
             write=patch_write,
-            owner=patch_owner,
         )
 
     @classmethod
     def create(
         cls,
-        title,
-        body,
-        editor,
+        title: str,
+        body: str,
+        editor: User,
         read: PermissionLevel = PermissionLevel.PUBLIC,
         write: PermissionLevel = PermissionLevel.PUBLIC,
-        slug=None,
-        owner=None,
+        slug: str = None,
+        parent: "WikiPage" or None = None,
+        owner: User or None = None,
     ) -> "WikiPage":
         page = cls.objects.create()
         slug = slugify(title) if slug is None else slug
@@ -156,6 +173,7 @@ class WikiPage(models.Model):
             editor=editor,
             read=read.value,
             write=write.value,
+            parent=parent,
             owner=owner,
         )
         return page
@@ -181,6 +199,7 @@ class Revision(models.Model):
     read = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     write = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     timestamp = models.DateTimeField(auto_now=True)
+    parent = models.ForeignKey(WikiPage, related_name="children", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self) -> str:
         return self.slug
