@@ -205,15 +205,14 @@ class Revision(models.Model):
         return self.slug
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.title)
+        self.set_slug(self.slug)
         super().save(*args, **kwargs)
 
     def set_slug(self, slug: str or None = None):
         root = self.title if slug is None else slug
         slug = slugify(root)
 
-        if self.page.parent is not None:
-            slug = f"{self.page.parent.slug}/{slug}"
+        if self.parent is not None:
+            slug = f"{self.parent.slug}/{slug}"
 
         self.slug = slug
