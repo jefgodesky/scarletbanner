@@ -75,10 +75,16 @@ class WikiPage(models.Model):
     def can_read(self, user: User = None) -> bool:
         return self.evaluate_permission(self.read, user)
 
-    def can_write(self, user: User = None) -> bool:
-        return self.evaluate_permission(self.write, user)
+    def can_write(self, to: str, user: User = None) -> bool:
+        can_read = self.can_read(user)
+        can_write_before = self.evaluate_permission(self.write, user)
+        can_write_after = self.evaluate_permission(to, user)
+        return can_read and can_write_before and can_write_after
 
     def update(self, title, body, editor, read: PermissionLevel, write: PermissionLevel, owner=None) -> None:
+        if not self.can_write(write.value, editor):
+            return
+
         Revision.objects.create(
             title=title, body=body, page=self, editor=editor, read=read.value, write=write.value, owner=owner
         )
@@ -91,6 +97,10 @@ class WikiPage(models.Model):
         patch_owner = self.owner if owner is None else owner
         patch_read = self.read if read is None else read.value
         patch_write = self.write if write is None else write.value
+
+        if not self.can_write(patch_write, editor):
+            return
+
         Revision.objects.create(
             title=patch_title,
             body=patch_body,
