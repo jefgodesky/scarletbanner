@@ -9,6 +9,9 @@ from wiki.permission_levels import PermissionLevel
 
 
 class WikiPage(models.Model):
+    def __str__(self) -> str:
+        return self.latest.title
+
     @property
     def latest(self) -> "Revision":
         return self.revisions.order_by("-timestamp", "-id").first()
@@ -60,9 +63,6 @@ class WikiPage(models.Model):
     @property
     def editors(self) -> list[User]:
         return [revision.editor for revision in self.revisions.all()]
-
-    def __str__(self) -> str:
-        return self.latest.title
 
     def evaluate_permission(self, permission: str, user: User = None) -> bool:
         is_admin = user is not None and user.is_staff
@@ -208,3 +208,12 @@ class Revision(models.Model):
         if not self.slug:
             self.slug = slugify(self.title)
         super().save(*args, **kwargs)
+
+    def set_slug(self, slug: str or None = None):
+        root = self.title if slug is None else slug
+        slug = slugify(root)
+
+        if self.page.parent is not None:
+            slug = f"{self.page.parent.slug}/{slug}"
+
+        self.slug = slug

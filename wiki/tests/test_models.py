@@ -305,3 +305,24 @@ class TestRevision:
 
     def test_str(self, revision):
         assert str(revision) == "test"
+
+    def test_set_slug_default(self, revision):
+        revision.slug = ""
+        revision.set_slug()
+        assert revision.slug == "test-page"
+
+    def test_set_slug_param(self, revision):
+        revision.slug = ""
+        revision.set_slug("test")
+        assert revision.slug == "test"
+
+    def test_set_slug_slugify(self, revision):
+        revision.slug = ""
+        revision.set_slug("Test Page")
+        assert revision.slug == "test-page"
+
+    def test_set_slug_child(self, child_wiki_page):
+        rev = child_wiki_page.latest
+        rev.slug = ""
+        rev.set_slug("Child Page")
+        assert rev.slug == "test/child-page"
