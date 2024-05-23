@@ -199,7 +199,7 @@ class Revision(models.Model):
     read = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     write = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     timestamp = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey(WikiPage, related_name="children", on_delete=models.CASCADE, null=True, blank=True)
+    parent = models.ForeignKey(WikiPage, related_name="children", on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self) -> str:
         return self.slug
