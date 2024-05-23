@@ -97,7 +97,8 @@ class WikiPage(models.Model):
         editor: User,
         read: PermissionLevel,
         write: PermissionLevel,
-        slug=None,
+        message: str,
+        slug: str or None = None,
         parent: "WikiPage" = None,
         owner: User or None = None,
     ) -> None:
@@ -113,6 +114,7 @@ class WikiPage(models.Model):
             editor=editor,
             read=read.value,
             write=write.value,
+            message=message,
             owner=owner,
             parent=parent,
         )
@@ -120,6 +122,7 @@ class WikiPage(models.Model):
     def patch(
         self,
         editor: User,
+        message: str,
         title: str = None,
         slug: str = None,
         body: str = None,
@@ -157,6 +160,7 @@ class WikiPage(models.Model):
         title: str,
         body: str,
         editor: User,
+        message: str = "Initial text",
         read: PermissionLevel = PermissionLevel.PUBLIC,
         write: PermissionLevel = PermissionLevel.PUBLIC,
         slug: str = None,
@@ -170,6 +174,7 @@ class WikiPage(models.Model):
             title=title,
             slug=slug,
             body=body,
+            message=message,
             editor=editor,
             read=read.value,
             write=write.value,
@@ -191,6 +196,7 @@ class Revision(models.Model):
     title = models.CharField(max_length=255)
     slug = models.CharField(max_length=255, unique=True)
     body = models.TextField(null=True, blank=True)
+    message = models.TextField(max_length=255)
     page = models.ForeignKey(WikiPage, related_name="revisions", on_delete=models.CASCADE)
     editor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="revisions", on_delete=models.CASCADE)
     owner = models.ForeignKey(

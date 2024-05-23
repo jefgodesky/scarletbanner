@@ -64,6 +64,7 @@ def updated_wiki_page(wiki_page, user, other):
         slug=updated_slug,
         body=updated_body,
         editor=other,
+        message="Test update",
         read=PermissionLevel.PUBLIC,
         write=PermissionLevel.PUBLIC,
     )
@@ -82,6 +83,7 @@ def updated_owned_wiki_page(owned_wiki_page):
         body=updated_body,
         editor=editor,
         owner=editor,
+        message="Test update",
         read=PermissionLevel.PUBLIC,
         write=PermissionLevel.PUBLIC,
     )

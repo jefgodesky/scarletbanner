@@ -43,7 +43,7 @@ class TestWikiPage:
             write=PermissionLevel.PUBLIC,
             editor=editor,
         )
-        page.patch(slug="parent/test", parent=parent, editor=editor)
+        page.patch(slug="parent/test", parent=parent, editor=editor, message="Patching test")
         assert page.parent == parent
 
     def test_update_not_allowed(self, user, other):
@@ -53,6 +53,7 @@ class TestWikiPage:
             slug="updated",
             body="Updated",
             editor=other,
+            message="Test update",
             write=PermissionLevel.PUBLIC,
             read=PermissionLevel.PUBLIC,
         )
@@ -65,6 +66,7 @@ class TestWikiPage:
             slug="updated",
             body="Updated",
             editor=user,
+            message="Test update",
             write=PermissionLevel.OWNER_ONLY,
             read=PermissionLevel.PUBLIC,
         )
@@ -74,7 +76,7 @@ class TestWikiPage:
         page, title, _, body, editor = wiki_page
         updated_title = "Updated Title"
         updated_slug = "updated"
-        page.patch(editor, title=updated_title, slug=updated_slug)
+        page.patch(editor, message="Patching test", title=updated_title, slug=updated_slug)
         assert page.title == updated_title
         assert page.body == body
 
@@ -294,6 +296,7 @@ class TestRevision:
         assert actual.title == "Test Page"
         assert actual.slug == "test"
         assert actual.body == "This is the original body."
+        assert actual.message == "Initial text"
         assert actual.owner is None
         assert actual.parent is None
         assert actual.read == PermissionLevel.PUBLIC.value
