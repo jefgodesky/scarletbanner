@@ -2,6 +2,7 @@ import datetime
 
 from django.conf import settings
 from django.db import models
+from slugify import slugify
 
 from scarletbanner.users.models import User
 from wiki.permission_levels import PermissionLevel
@@ -19,6 +20,10 @@ class WikiPage(models.Model):
     @property
     def title(self) -> str:
         return self.latest.title
+
+    @property
+    def slug(self) -> str:
+        return self.latest.slug
 
     @property
     def body(self) -> str:
@@ -81,18 +86,36 @@ class WikiPage(models.Model):
         can_write_after = self.evaluate_permission(to, user)
         return can_read and can_write_before and can_write_after
 
-    def update(self, title, body, editor, read: PermissionLevel, write: PermissionLevel, owner=None) -> None:
+    def update(
+        self, title, body, editor, read: PermissionLevel, write: PermissionLevel, slug=None, owner=None
+    ) -> None:
         if not self.can_write(write.value, editor):
             return
 
+        slug = slugify(title) if slug is None else slug
         Revision.objects.create(
-            title=title, body=body, page=self, editor=editor, read=read.value, write=write.value, owner=owner
+            title=title,
+            slug=slug,
+            body=body,
+            page=self,
+            editor=editor,
+            read=read.value,
+            write=write.value,
+            owner=owner,
         )
 
     def patch(
-        self, editor, title=None, body=None, read: PermissionLevel = None, write: PermissionLevel = None, owner=None
+        self,
+        editor,
+        title=None,
+        slug=None,
+        body=None,
+        read: PermissionLevel = None,
+        write: PermissionLevel = None,
+        owner=None,
     ) -> None:
         patch_title = self.title if title is None else title
+        patch_slug = self.slug if slug is None else slug
         patch_body = self.body if body is None else body
         patch_owner = self.owner if owner is None else owner
         patch_read = self.read if read is None else read.value
@@ -103,6 +126,7 @@ class WikiPage(models.Model):
 
         Revision.objects.create(
             title=patch_title,
+            slug=patch_slug,
             body=patch_body,
             page=self,
             editor=editor,
@@ -119,12 +143,15 @@ class WikiPage(models.Model):
         editor,
         read: PermissionLevel = PermissionLevel.PUBLIC,
         write: PermissionLevel = PermissionLevel.PUBLIC,
+        slug=None,
         owner=None,
     ) -> "WikiPage":
         page = cls.objects.create()
+        slug = slugify(title) if slug is None else slug
         Revision.objects.create(
             page=page,
             title=title,
+            slug=slug,
             body=body,
             editor=editor,
             read=read.value,
@@ -144,6 +171,7 @@ class Revision(models.Model):
     ]
 
     title = models.CharField(max_length=255)
+    slug = models.CharField(max_length=255, unique=True)
     body = models.TextField(null=True, blank=True)
     page = models.ForeignKey(WikiPage, related_name="revisions", on_delete=models.CASCADE)
     editor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="revisions", on_delete=models.CASCADE)
@@ -155,4 +183,9 @@ class Revision(models.Model):
     timestamp = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
-        return self.title
+        return self.slug
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
