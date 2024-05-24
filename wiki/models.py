@@ -216,7 +216,8 @@ class Revision(models.Model):
 
     def set_slug(self, slug: str or None = None):
         root = self.title if slug is None else slug
-        slug = slugify(root)
+        parts = [slugify(part) for part in root.split('/')]
+        slug = "/".join(parts)
 
         if self.parent is not None:
             slug = f"{self.parent.slug}/{slug}"

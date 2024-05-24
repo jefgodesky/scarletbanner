@@ -27,7 +27,7 @@ def wiki_page(user):
 def child_wiki_page(wiki_page):
     page, _, slug, _, editor = wiki_page
     title = "Child Page"
-    slug = f"{slug}/child"
+    slug = "child"
     body = "This is a child page."
     return WikiPage.create(title=title, slug=slug, body=body, editor=editor, parent=page)
 
