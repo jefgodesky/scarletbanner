@@ -2,7 +2,9 @@ import datetime
 
 from django.conf import settings
 from django.db import models
-from django.db.models import F, Max
+from django.db.models import F, Max, Q
+from django.db.models.signals import pre_save, post_save
+from django.dispatch import receiver
 from slugify import slugify
 
 from scarletbanner.users.models import User
@@ -164,6 +166,27 @@ class WikiPage(models.Model):
             write=patch_write,
         )
 
+    def reparent(self, editor: User, deleted: str, new_parent: "WikiPage" or None = None) -> None:
+        none_message = "Reparenting to root"
+        new_message = f"Reparenting to {new_parent}"
+        message = none_message if new_parent is None else new_message
+        slug = WikiPage.reslug_without_parent(self.slug, deleted)
+
+        self.patch(
+            editor=editor,
+            message=message,
+            parent=new_parent,
+            slug=slug
+        )
+
+        for child in self.children:
+            child.reparent(editor, deleted, new_parent=self)
+
+    def destroy(self, editor: User) -> None:
+        for child in self.children:
+            child.reparent(editor, deleted=self.slug, new_parent=self.parent)
+        super().delete()
+
     @classmethod
     def create(
         cls,
@@ -212,7 +235,7 @@ class Revision(models.Model):
     ]
 
     title = models.CharField(max_length=255)
-    slug = models.CharField(max_length=255, unique=True)
+    slug = models.CharField(max_length=255)
     body = models.TextField(null=True, blank=True)
     message = models.TextField(max_length=255)
     page = models.ForeignKey(WikiPage, related_name="revisions", on_delete=models.CASCADE)
@@ -224,6 +247,12 @@ class Revision(models.Model):
     write = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     timestamp = models.DateTimeField(auto_now=True)
     parent = models.ForeignKey(WikiPage, on_delete=models.SET_NULL, null=True, blank=True)
+    is_latest = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["slug"], condition=Q(is_latest=True), name="unique_page_slug")
+        ]
 
     def __str__(self) -> str:
         return self.slug
@@ -231,6 +260,9 @@ class Revision(models.Model):
     def save(self, *args, **kwargs):
         self.set_slug(self.slug)
         super().save(*args, **kwargs)
+
+        if self.is_latest:
+            self.page.revisions.exclude(pk=self.pk).update(is_latest=False)
 
     def set_slug(self, slug: str or None = None):
         root = self.title if slug is None else slug
@@ -241,3 +273,15 @@ class Revision(models.Model):
             slug = f"{self.parent.slug}/{slug}"
 
         self.slug = slug
+
+
+@receiver(pre_save, sender=Revision)
+def set_latest_revision(sender, instance, **kwargs):
+    if instance.pk is None:
+        instance.is_latest = True
+
+
+@receiver(post_save, sender=Revision)
+def update_latest_revision(sender, instance, created, **kwargs):
+    if created:
+        Revision.objects.filter(page=instance.page).exclude(pk=instance.pk).update(is_latest=False)

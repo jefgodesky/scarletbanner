@@ -9,18 +9,8 @@ def wiki_page(user):
     title = "Test Page"
     slug = "test"
     body = "This is the original body."
-    return (
-        WikiPage.create(
-            title=title,
-            slug=slug,
-            body=body,
-            editor=user,
-        ),
-        title,
-        slug,
-        body,
-        user,
-    )
+    page = WikiPage.create(title=title, slug=slug, body=body, editor=user)
+    return page, title, slug, body, user
 
 
 @pytest.fixture
@@ -29,7 +19,17 @@ def child_wiki_page(wiki_page):
     title = "Child Page"
     slug = "child"
     body = "This is a child page."
-    return WikiPage.create(title=title, slug=slug, body=body, editor=editor, parent=page)
+    child = WikiPage.create(title=title, slug=slug, body=body, editor=editor, parent=page)
+    return child
+
+
+@pytest.fixture
+def grandchild_wiki_page(child_wiki_page):
+    title = "Grandchild Page"
+    slug = "grandchild"
+    body = "This is a grandchild page."
+    grandchild = WikiPage.create(title=title, slug=slug, body=body, editor=child_wiki_page.editors[0], parent=child_wiki_page)
+    return grandchild
 
 
 @pytest.fixture
@@ -37,20 +37,8 @@ def owned_wiki_page(user, owner):
     title = "Owned Page"
     slug = "owned"
     body = "This is an owned page."
-    return (
-        WikiPage.create(
-            title=title,
-            slug=slug,
-            body=body,
-            editor=user,
-            owner=owner,
-        ),
-        title,
-        slug,
-        body,
-        user,
-        owner,
-    )
+    page = WikiPage.create(title=title, slug=slug, body=body, editor=user, owner=owner)
+    return page, title, slug, body, user, owner
 
 
 @pytest.fixture

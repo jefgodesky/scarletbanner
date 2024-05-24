@@ -1,5 +1,7 @@
 import pytest
 
+from django.db.utils import IntegrityError
+
 from wiki.models import Revision, WikiPage
 from wiki.permission_levels import PermissionLevel
 
@@ -115,8 +117,9 @@ class TestWikiPage:
 
     def test_editors(self, updated_wiki_page):
         page, _, _, _, editor = updated_wiki_page
-        expected = [page.created_by, editor]
-        assert page.editors == expected
+        assert len(page.editors) == 2
+        assert page.editors[1] == page.created_by
+        assert page.editors[0] == editor
 
     def test_children(self, child_wiki_page):
         assert len(child_wiki_page.parent.children) == 1
@@ -321,6 +324,11 @@ class TestRevision:
 
     def test_str(self, revision):
         assert str(revision) == "test"
+
+    def test_unique_slug(self, wiki_page):
+        a, _, _, _, editor = wiki_page
+        with pytest.raises(IntegrityError):
+            WikiPage.create(title="Test Page", slug=a.slug, body="Test", editor=editor)
 
     def test_set_slug_default(self, revision):
         revision.slug = ""
