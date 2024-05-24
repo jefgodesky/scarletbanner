@@ -90,6 +90,11 @@ class TestWikiPage:
             WikiPage.objects.get(id=wiki_page_id)
             Revision.objects.get(wiki_page=wiki_page_id)
 
+    def test_unique_slug_element(self, grandchild_wiki_page):
+        assert grandchild_wiki_page.unique_slug_element == "grandchild"
+        assert grandchild_wiki_page.parent.unique_slug_element == "child"
+        assert grandchild_wiki_page.parent.parent.unique_slug_element == "test"
+
     def test_latest(self, revision):
         page = revision.page
         assert page.latest == revision

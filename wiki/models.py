@@ -32,6 +32,11 @@ class WikiPage(models.Model):
         return self.latest.slug
 
     @property
+    def unique_slug_element(self) -> str:
+        parts = [part for part in self.slug.split("/")]
+        return parts[-1]
+
+    @property
     def body(self) -> str:
         return self.latest.body
 
