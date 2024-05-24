@@ -81,13 +81,29 @@ class TestWikiPage:
         assert page.title == updated_title
         assert page.body == body
 
-    def test_delete(self, wiki_page):
-        page, _, _, _, _ = wiki_page
+    def test_destroy(self, wiki_page):
+        page, _, _, _, editor = wiki_page
         wiki_page_id = page.id
-        page.delete()
+        page.destroy(editor)
         with pytest.raises(WikiPage.DoesNotExist):
             WikiPage.objects.get(id=wiki_page_id)
             Revision.objects.get(wiki_page=wiki_page_id)
+
+    def test_destroy_grandparent(self, grandchild_wiki_page):
+        grandchild_wiki_page.parent.parent.destroy(grandchild_wiki_page.editors[0])
+        assert grandchild_wiki_page.parent.parent is None
+        assert grandchild_wiki_page.parent.slug == "child"
+        assert grandchild_wiki_page.parent.children[0] == grandchild_wiki_page
+        assert isinstance(grandchild_wiki_page.parent, WikiPage)
+        assert grandchild_wiki_page.slug == "child/grandchild"
+
+    def test_destroy_middle(self, grandchild_wiki_page):
+        grandparent = grandchild_wiki_page.parent.parent
+        grandchild_wiki_page.parent.destroy(grandchild_wiki_page.editors[0])
+        assert grandparent.slug == "test"
+        assert grandparent.children[0] == grandchild_wiki_page
+        assert grandchild_wiki_page.parent == grandparent
+        assert grandchild_wiki_page.slug == "test/grandchild"
 
     def test_unique_slug_element(self, grandchild_wiki_page):
         assert grandchild_wiki_page.unique_slug_element == "grandchild"
@@ -297,16 +313,7 @@ class TestWikiPage:
     def test_can_write(self, request, before, after, reader_fixture, expected, user, owner):
         page = WikiPage.create(title="Test", slug="test", body="Test", editor=user, owner=owner, write=before)
         reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
-        assert page.can_write(after.value, reader) == expected
-
-    def test_reslug_without_parent_child(self):
-        assert WikiPage.reslug_without_parent("test/child", "test") == "child"
-
-    def test_reslug_without_parent_grandchild(self):
-        assert WikiPage.reslug_without_parent("test/child/grandchild", "test") == "child/grandchild"
-
-    def test_reslug_without_parent_mid(self):
-        assert WikiPage.reslug_without_parent("parent/test/child", "parent/test") == "parent/child"
+        assert page.can_write(after, reader) == expected
 
 
 @pytest.mark.django_db

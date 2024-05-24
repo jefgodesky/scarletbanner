@@ -172,25 +172,30 @@ class WikiPage(models.Model):
             message=message,
         )
 
-    def reparent(self, editor: User, deleted: str, new_parent: "WikiPage" or None = None) -> None:
+    def reparent(self, editor: User, new_parent: "WikiPage" or None = None) -> None:
         none_message = "Reparenting to root"
         new_message = f"Reparenting to {new_parent}"
         message = none_message if new_parent is None else new_message
-        slug = WikiPage.reslug_without_parent(self.slug, deleted)
 
-        self.patch(
+        self.update(
+            title=self.title,
+            body=self.body,
             editor=editor,
+            read=self.read,
+            write=self.write,
             message=message,
+            slug=self.unique_slug_element,
             parent=new_parent,
-            slug=slug
+            owner=self.owner,
         )
 
         for child in self.children:
-            child.reparent(editor, deleted, new_parent=self)
+            child.reparent(editor, new_parent=self)
 
     def destroy(self, editor: User) -> None:
         for child in self.children:
-            child.reparent(editor, deleted=self.slug, new_parent=self.parent)
+            child.reparent(editor, new_parent=self.parent)
+
         super().delete()
 
     @classmethod
@@ -221,14 +226,6 @@ class WikiPage(models.Model):
             owner=owner,
         )
         return page
-
-    @staticmethod
-    def reslug_without_parent(slug: str, parent_slug: str) -> str:
-        parent_parts = [part for part in parent_slug.split("/")]
-        parent_unique = parent_parts[-1]
-        parts = [part for part in slug.split("/")]
-        parts = filter(lambda p: p != parent_unique, parts)
-        return "/".join(parts)
 
 
 class Revision(models.Model):

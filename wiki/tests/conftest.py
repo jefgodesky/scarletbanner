@@ -28,7 +28,9 @@ def grandchild_wiki_page(child_wiki_page):
     title = "Grandchild Page"
     slug = "grandchild"
     body = "This is a grandchild page."
-    grandchild = WikiPage.create(title=title, slug=slug, body=body, editor=child_wiki_page.editors[0], parent=child_wiki_page)
+    grandchild = WikiPage.create(
+        title=title, slug=slug, body=body, editor=child_wiki_page.editors[0], parent=child_wiki_page
+    )
     return grandchild
 
 
