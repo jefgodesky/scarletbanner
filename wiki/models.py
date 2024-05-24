@@ -2,7 +2,7 @@ import datetime
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Max, F
+from django.db.models import F, Max
 from slugify import slugify
 
 from scarletbanner.users.models import User
@@ -68,8 +68,7 @@ class WikiPage(models.Model):
     @property
     def children(self) -> list["WikiPage"]:
         latest_revisions = (
-            Revision.objects
-            .filter(parent=self)
+            Revision.objects.filter(parent=self)
             .annotate(latest_timestamp=Max("page__revisions__timestamp"))
             .filter(timestamp=F("latest_timestamp"))
         )
@@ -194,6 +193,14 @@ class WikiPage(models.Model):
         )
         return page
 
+    @staticmethod
+    def reslug_without_parent(slug: str, parent_slug: str) -> str:
+        parent_parts = [part for part in parent_slug.split("/")]
+        parent_unique = parent_parts[-1]
+        parts = [part for part in slug.split("/")]
+        parts = filter(lambda p: p != parent_unique, parts)
+        return "/".join(parts)
+
 
 class Revision(models.Model):
     SECURITY_CHOICES = [
@@ -227,7 +234,7 @@ class Revision(models.Model):
 
     def set_slug(self, slug: str or None = None):
         root = self.title if slug is None else slug
-        parts = [slugify(part) for part in root.split('/')]
+        parts = [slugify(part) for part in root.split("/")]
         slug = "/".join(parts)
 
         if self.parent is not None:

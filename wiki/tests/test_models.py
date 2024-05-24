@@ -292,6 +292,15 @@ class TestWikiPage:
         reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
         assert page.can_write(after.value, reader) == expected
 
+    def test_reslug_without_parent_child(self):
+        assert WikiPage.reslug_without_parent("test/child", "test") == "child"
+
+    def test_reslug_without_parent_grandchild(self):
+        assert WikiPage.reslug_without_parent("test/child/grandchild", "test") == "child/grandchild"
+
+    def test_reslug_without_parent_mid(self):
+        assert WikiPage.reslug_without_parent("parent/test/child", "parent/test") == "parent/child"
+
 
 @pytest.mark.django_db
 class TestRevision:
