@@ -118,6 +118,10 @@ class TestWikiPage:
         expected = [page.created_by, editor]
         assert page.editors == expected
 
+    def test_children(self, child_wiki_page):
+        assert len(child_wiki_page.parent.children) == 1
+        assert child_wiki_page.parent.children[0] == child_wiki_page
+
     @pytest.mark.parametrize(
         "permission, reader_fixture, expected",
         [

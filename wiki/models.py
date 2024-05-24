@@ -2,6 +2,7 @@ import datetime
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Max, F
 from slugify import slugify
 
 from scarletbanner.users.models import User
@@ -63,6 +64,16 @@ class WikiPage(models.Model):
     @property
     def editors(self) -> list[User]:
         return [revision.editor for revision in self.revisions.all()]
+
+    @property
+    def children(self) -> list["WikiPage"]:
+        latest_revisions = (
+            Revision.objects
+            .filter(parent=self)
+            .annotate(latest_timestamp=Max("page__revisions__timestamp"))
+            .filter(timestamp=F("latest_timestamp"))
+        )
+        return [rev.page for rev in latest_revisions]
 
     def evaluate_permission(self, permission: str, user: User = None) -> bool:
         is_admin = user is not None and user.is_staff
@@ -205,7 +216,7 @@ class Revision(models.Model):
     read = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     write = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
     timestamp = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey(WikiPage, related_name="children", on_delete=models.SET_NULL, null=True, blank=True)
+    parent = models.ForeignKey(WikiPage, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self) -> str:
         return self.slug
