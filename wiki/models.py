@@ -3,7 +3,7 @@ import datetime
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Max, Q
-from django.db.models.signals import pre_save, post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from slugify import slugify
 
@@ -256,18 +256,18 @@ class Revision(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["slug"], condition=Q(is_latest=True), name="unique_page_slug")
+            models.UniqueConstraint(fields=["slug", "page"], condition=Q(is_latest=True), name="unique_page_slug")
         ]
 
     def __str__(self) -> str:
         return self.slug
 
     def save(self, *args, **kwargs):
-        self.set_slug(self.slug)
-        super().save(*args, **kwargs)
-
         if self.is_latest:
             self.page.revisions.exclude(pk=self.pk).update(is_latest=False)
+
+        self.set_slug(self.slug)
+        super().save(*args, **kwargs)
 
     def set_slug(self, slug: str or None = None):
         root = self.title if slug is None else slug

@@ -1,5 +1,4 @@
 import pytest
-
 from django.db.utils import IntegrityError
 
 from wiki.models import Revision, WikiPage
@@ -331,9 +330,15 @@ class TestRevision:
         assert str(revision) == "test"
 
     def test_unique_slug(self, wiki_page):
-        a, _, _, _, editor = wiki_page
+        page, _, _, _, editor = wiki_page
         with pytest.raises(IntegrityError):
-            WikiPage.create(title="Test Page", slug=a.slug, body="Test", editor=editor)
+            WikiPage.create(title="Test Page", slug=page.slug, body="Test", editor=editor)
+
+    def test_unique_slug_does_not_stop_update(self, wiki_page):
+        page, _, _, _, editor = wiki_page
+        page.patch(title="Updated Title", editor=editor, message="Update title.")
+        assert page.title == "Updated Title"
+        assert page.slug == "test"
 
     def test_set_slug_default(self, revision):
         revision.slug = ""
