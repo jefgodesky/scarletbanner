@@ -14,8 +14,8 @@ class TestWikiPage:
         assert actual.slug == slug
         assert actual.body == body
         assert actual.owner is None
-        assert actual.read == PermissionLevel.PUBLIC.value
-        assert actual.write == PermissionLevel.PUBLIC.value
+        assert actual.read == PermissionLevel.PUBLIC
+        assert actual.write == PermissionLevel.PUBLIC
 
     def test_create_child(self, child_wiki_page):
         assert isinstance(child_wiki_page.parent, WikiPage)
@@ -31,8 +31,8 @@ class TestWikiPage:
         assert page.slug == slug
         assert page.owner is None
         assert page.parent is None
-        assert page.read == PermissionLevel.PUBLIC.value
-        assert page.write == PermissionLevel.PUBLIC.value
+        assert page.read == PermissionLevel.PUBLIC
+        assert page.write == PermissionLevel.PUBLIC
 
     def test_update_child(self, wiki_page):
         page, _, _, _, editor = wiki_page

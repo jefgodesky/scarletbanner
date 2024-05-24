@@ -49,12 +49,12 @@ class WikiPage(models.Model):
         return self.latest.parent
 
     @property
-    def read(self) -> str:
-        return self.latest.read
+    def read(self) -> PermissionLevel:
+        return PermissionLevel(self.latest.read)
 
     @property
-    def write(self) -> str:
-        return self.latest.write
+    def write(self) -> PermissionLevel:
+        return PermissionLevel(self.latest.write)
 
     @property
     def updated(self) -> datetime:
@@ -81,19 +81,19 @@ class WikiPage(models.Model):
         )
         return [rev.page for rev in latest_revisions]
 
-    def evaluate_permission(self, permission: str, user: User = None) -> bool:
+    def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
         is_admin = user is not None and user.is_staff
         is_owner = self.owner == user
         is_editor = user in self.editors
 
         match permission:
-            case PermissionLevel.PUBLIC.value:
+            case PermissionLevel.PUBLIC:
                 return True
-            case PermissionLevel.MEMBERS_ONLY.value:
+            case PermissionLevel.MEMBERS_ONLY:
                 return user is not None
-            case PermissionLevel.EDITORS_ONLY.value:
+            case PermissionLevel.EDITORS_ONLY:
                 return is_editor or is_admin or is_owner
-            case PermissionLevel.OWNER_ONLY.value:
+            case PermissionLevel.OWNER_ONLY:
                 return is_admin or is_owner
             case _:
                 return is_admin
@@ -101,7 +101,7 @@ class WikiPage(models.Model):
     def can_read(self, user: User = None) -> bool:
         return self.evaluate_permission(self.read, user)
 
-    def can_write(self, to: str, user: User = None) -> bool:
+    def can_write(self, to: PermissionLevel, user: User = None) -> bool:
         can_read = self.can_read(user)
         can_write_before = self.evaluate_permission(self.write, user)
         can_write_after = self.evaluate_permission(to, user)
@@ -119,7 +119,7 @@ class WikiPage(models.Model):
         parent: "WikiPage" = None,
         owner: User or None = None,
     ) -> None:
-        if not self.can_write(write.value, editor):
+        if not self.can_write(write, editor):
             return
 
         slug = slugify(title) if slug is None else slug
@@ -153,8 +153,8 @@ class WikiPage(models.Model):
         patch_body = self.body if body is None else body
         patch_parent = self.parent if parent is None else parent
         patch_owner = self.owner if owner is None else owner
-        patch_read = self.read if read is None else read.value
-        patch_write = self.write if write is None else write.value
+        patch_read = self.read if read is None else read
+        patch_write = self.write if write is None else write
 
         if not self.can_write(patch_write, editor):
             return
@@ -167,8 +167,9 @@ class WikiPage(models.Model):
             owner=patch_owner,
             page=self,
             editor=editor,
-            read=patch_read,
-            write=patch_write,
+            read=patch_read.value,
+            write=patch_write.value,
+            message=message,
         )
 
     def reparent(self, editor: User, deleted: str, new_parent: "WikiPage" or None = None) -> None:
