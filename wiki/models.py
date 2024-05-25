@@ -13,6 +13,9 @@ from wiki.permission_levels import PermissionLevel
 
 
 class WikiPage(models.Model):
+    PAGE_TYPES = [("page", "Page")]
+    type = models.CharField(max_length=20, choices=PAGE_TYPES, default="page")
+
     def __str__(self) -> str:
         return self.latest.title
 
