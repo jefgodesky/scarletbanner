@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Max, Q
 from django.db.models.signals import post_save, pre_save
+from django.db.utils import IntegrityError
 from django.dispatch import receiver
 from slugify import slugify
 
@@ -262,7 +263,10 @@ class Revision(models.Model):
 
     def save(self, *args, **kwargs):
         if self.is_latest:
-            self.page.revisions.exclude(pk=self.pk).update(is_latest=False)
+            Revision.objects.filter(page=self.page, is_latest=True).exclude(pk=self.pk).update(is_latest=False)
+
+        if Revision.objects.filter(slug=self.slug, is_latest=True).exclude(page=self.page).exists():
+            raise IntegrityError(f"A page with the slug '{self.slug}' already exists.")
 
         self.set_slug(self.slug)
         super().save(*args, **kwargs)
