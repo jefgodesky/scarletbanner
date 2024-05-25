@@ -1,7 +1,7 @@
 import pytest
 
+from wiki.enums import PageType, PermissionLevel
 from wiki.models import WikiPage
-from wiki.permission_levels import PermissionLevel
 
 
 @pytest.fixture
@@ -50,6 +50,7 @@ def updated_wiki_page(wiki_page, user, other):
     updated_slug = "updated"
     updated_body = "This is the updated body."
     page.update(
+        page_type=PageType.PAGE,
         title=updated_title,
         slug=updated_slug,
         body=updated_body,
@@ -68,6 +69,7 @@ def updated_owned_wiki_page(owned_wiki_page):
     updated_slug = "updated-owned"
     updated_body = "This is the updated body."
     page.update(
+        page_type=PageType.PAGE,
         title=updated_title,
         slug=updated_slug,
         body=updated_body,
@@ -78,6 +80,15 @@ def updated_owned_wiki_page(owned_wiki_page):
         write=PermissionLevel.PUBLIC,
     )
     return page, updated_title, updated_slug, updated_body, editor
+
+
+@pytest.fixture
+def character(user):
+    title = "John Doe"
+    slug = "john-doe"
+    body = "This is a character page."
+    page = WikiPage.create(page_type=PageType.CHARACTER, title=title, slug=slug, body=body, editor=user, owner=user)
+    return page, user
 
 
 @pytest.fixture

@@ -9,13 +9,10 @@ from django.dispatch import receiver
 from slugify import slugify
 
 from scarletbanner.users.models import User
-from wiki.permission_levels import PermissionLevel
+from wiki.enums import PageType, PermissionLevel
 
 
 class WikiPage(models.Model):
-    PAGE_TYPES = [("page", "Page")]
-    type = models.CharField(max_length=20, choices=PAGE_TYPES, default="page")
-
     def __str__(self) -> str:
         return self.latest.title
 
@@ -26,6 +23,10 @@ class WikiPage(models.Model):
     @property
     def original(self) -> "Revision":
         return self.revisions.order_by("timestamp", "id").first()
+
+    @property
+    def page_type(self) -> PageType:
+        return PageType(self.latest.page_type)
 
     @property
     def title(self) -> str:
@@ -113,6 +114,7 @@ class WikiPage(models.Model):
 
     def update(
         self,
+        page_type: PageType,
         title: str,
         body: str,
         editor: User,
@@ -128,6 +130,7 @@ class WikiPage(models.Model):
 
         slug = slugify(title) if slug is None else slug
         Revision.objects.create(
+            page_type=page_type.value,
             title=title,
             slug=slug,
             body=body,
@@ -144,6 +147,7 @@ class WikiPage(models.Model):
         self,
         editor: User,
         message: str,
+        page_type: PageType = None,
         title: str = None,
         slug: str = None,
         body: str = None,
@@ -152,6 +156,7 @@ class WikiPage(models.Model):
         read: PermissionLevel = None,
         write: PermissionLevel = None,
     ) -> None:
+        patch_type = self.page_type if page_type is None else page_type
         patch_title = self.title if title is None else title
         patch_slug = self.slug if slug is None else slug
         patch_body = self.body if body is None else body
@@ -164,6 +169,7 @@ class WikiPage(models.Model):
             return
 
         Revision.objects.create(
+            page_type=patch_type.value,
             title=patch_title,
             slug=patch_slug,
             body=patch_body,
@@ -182,6 +188,7 @@ class WikiPage(models.Model):
         message = none_message if new_parent is None else new_message
 
         self.update(
+            page_type=self.page_type,
             title=self.title,
             body=self.body,
             editor=editor,
@@ -209,6 +216,7 @@ class WikiPage(models.Model):
         body: str,
         editor: User,
         message: str = "Initial text",
+        page_type: PageType = PageType.PAGE,
         read: PermissionLevel = PermissionLevel.PUBLIC,
         write: PermissionLevel = PermissionLevel.PUBLIC,
         slug: str = None,
@@ -219,6 +227,7 @@ class WikiPage(models.Model):
         slug = slugify(title) if slug is None else slug
         Revision.objects.create(
             page=page,
+            page_type=page_type.value,
             title=title,
             slug=slug,
             body=body,
@@ -233,6 +242,7 @@ class WikiPage(models.Model):
 
 
 class Revision(models.Model):
+    PAGE_TYPES = [(PageType.PAGE.value, "Page"), (PageType.CHARACTER.value, "Character")]
     SECURITY_CHOICES = [
         (PermissionLevel.PUBLIC.value, "Public"),
         (PermissionLevel.MEMBERS_ONLY.value, "Members only"),
@@ -241,6 +251,7 @@ class Revision(models.Model):
         (PermissionLevel.ADMIN_ONLY.value, "Admins only"),
     ]
 
+    page_type = models.CharField(max_length=20, choices=PAGE_TYPES, default=PageType.PAGE.value)
     title = models.CharField(max_length=255)
     slug = models.CharField(max_length=255)
     body = models.TextField(null=True, blank=True)

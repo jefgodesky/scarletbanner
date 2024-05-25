@@ -1,8 +1,8 @@
 import pytest
 from django.db.utils import IntegrityError
 
+from wiki.enums import PageType, PermissionLevel
 from wiki.models import Revision, WikiPage
-from wiki.permission_levels import PermissionLevel
 
 
 @pytest.mark.django_db
@@ -16,6 +16,14 @@ class TestWikiPage:
         assert actual.owner is None
         assert actual.read == PermissionLevel.PUBLIC
         assert actual.write == PermissionLevel.PUBLIC
+
+    def test_create_read_character(self, character):
+        page, player = character
+        actual = WikiPage.objects.get(id=page.id)
+        assert actual.title == page.title
+        assert actual.slug == page.slug
+        assert actual.page_type == PageType.CHARACTER
+        assert actual.owner == player
 
     def test_create_child(self, child_wiki_page):
         assert isinstance(child_wiki_page.parent, WikiPage)
@@ -34,9 +42,24 @@ class TestWikiPage:
         assert page.read == PermissionLevel.PUBLIC
         assert page.write == PermissionLevel.PUBLIC
 
+    def test_update_type(self, wiki_page):
+        page, _, _, _, user = wiki_page
+        page.update(
+            page_type=PageType.CHARACTER,
+            title=page.title,
+            slug=page.slug,
+            body=page.body,
+            editor=user,
+            message="Update page type",
+            read=PermissionLevel.PUBLIC,
+            write=PermissionLevel.PUBLIC,
+        )
+        assert page.page_type == PageType.CHARACTER
+
     def test_update_child(self, wiki_page):
         page, _, _, _, editor = wiki_page
         parent = WikiPage.create(
+            page_type=PageType.PAGE,
             title="Parent",
             slug="parent",
             body="This is the parent page.",
@@ -50,6 +73,7 @@ class TestWikiPage:
     def test_update_not_allowed(self, user, other):
         page = WikiPage.create(title="Test", body="Test", editor=user, write=PermissionLevel.EDITORS_ONLY)
         page.update(
+            page_type=PageType.PAGE,
             title="Updated",
             slug="updated",
             body="Updated",
@@ -63,6 +87,7 @@ class TestWikiPage:
     def test_update_no_lockout(self, user):
         page = WikiPage.create(title="Test", body="Test", editor=user)
         page.update(
+            page_type=PageType.PAGE,
             title="Updated",
             slug="updated",
             body="Updated",
@@ -80,6 +105,15 @@ class TestWikiPage:
         page.patch(editor, message="Patching test", title=updated_title, slug=updated_slug)
         assert page.title == updated_title
         assert page.body == body
+
+    def test_patch_type(self, wiki_page):
+        page, _, _, _, user = wiki_page
+        page.patch(
+            page_type=PageType.CHARACTER,
+            editor=user,
+            message="Update page type",
+        )
+        assert page.page_type == PageType.CHARACTER
 
     def test_destroy(self, wiki_page):
         page, _, _, _, editor = wiki_page
