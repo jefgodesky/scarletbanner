@@ -71,7 +71,7 @@ class WikiPage(models.Model):
 
     @property
     def editors(self) -> list[User]:
-        return [revision.editor for revision in self.revisions.all()]
+        return [revision.editor for revision in self.revisions.order_by("timestamp", "id")]
 
     @property
     def children(self) -> list["WikiPage"]:

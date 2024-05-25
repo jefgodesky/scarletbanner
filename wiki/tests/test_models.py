@@ -137,12 +137,9 @@ class TestWikiPage:
 
     def test_editors(self, updated_wiki_page):
         page, _, _, _, editor = updated_wiki_page
-        print(f"Page: {page}")
-        print(f"Editors: {page.editors}")
-        print(f"Created by: {page.created_by}")
         assert len(page.editors) == 2
-        assert page.editors[1] == page.created_by
-        assert page.editors[0] == editor
+        assert page.editors[0] == page.created_by
+        assert page.editors[1] == editor
 
     def test_children(self, child_wiki_page):
         assert len(child_wiki_page.parent.children) == 1
