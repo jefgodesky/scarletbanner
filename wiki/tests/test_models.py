@@ -32,6 +32,17 @@ class TestWikiPage:
         page, title, _, _, _ = wiki_page
         assert str(page) == title
 
+    def test_get_type(self, character, other):
+        page, player = character
+        all_characters = WikiPage.get_type(PageType.CHARACTER)
+        player_characters = WikiPage.get_type(PageType.CHARACTER, owner=player)
+        other_characters = WikiPage.get_type(PageType.CHARACTER, owner=other)
+        assert len(all_characters) == 1
+        assert len(player_characters) == 1
+        assert len(other_characters) == 0
+        assert all_characters[0] == page
+        assert player_characters[0] == page
+
     def test_update(self, updated_wiki_page):
         page, title, slug, body, _ = updated_wiki_page
         assert page.title == title

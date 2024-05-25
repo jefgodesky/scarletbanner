@@ -3,6 +3,7 @@ import datetime
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Max, Q
+from django.db.models.query import QuerySet
 from django.db.models.signals import post_save, pre_save
 from django.db.utils import IntegrityError
 from django.dispatch import receiver
@@ -239,6 +240,15 @@ class WikiPage(models.Model):
             owner=owner,
         )
         return page
+
+    @classmethod
+    def get_type(cls, page_type: PageType, owner: User or None = None) -> QuerySet["WikiPage"]:
+        latest = Q(revisions__is_latest=True, revisions__page_type=page_type.value)
+
+        if owner is None:
+            return cls.objects.filter(latest).distinct()
+
+        return cls.objects.filter(latest, revisions__owner=owner).distinct()
 
 
 class Revision(models.Model):
