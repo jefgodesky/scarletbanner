@@ -2,7 +2,7 @@ import pytest
 from django.db.utils import IntegrityError
 
 from wiki.enums import PageType, PermissionLevel
-from wiki.models import Revision, WikiPage
+from wiki.models import Revision, SecretCategory, WikiPage
 
 
 @pytest.mark.django_db
@@ -412,3 +412,13 @@ class TestRevision:
         rev.slug = ""
         rev.set_slug("Child Page")
         assert rev.slug == "test/child-page"
+
+
+@pytest.mark.django_db
+class TestSecretCategory:
+    def test_create_read(self, secret_category):
+        assert isinstance(secret_category, SecretCategory)
+        assert secret_category.name == "Secret Category"
+        assert secret_category.parent.name == "Parent Category"
+        assert secret_category.children.count() == 1
+        assert secret_category.children.first().name == "Child Category"

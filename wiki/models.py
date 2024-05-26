@@ -8,6 +8,7 @@ from django.db.models.signals import post_save, pre_save
 from django.db.utils import IntegrityError
 from django.dispatch import receiver
 from slugify import slugify
+from tree_queries.models import TreeNode
 
 from scarletbanner.users.models import User
 from wiki.enums import PageType, PermissionLevel
@@ -316,3 +317,7 @@ def set_latest_revision(sender, instance, **kwargs):
 def update_latest_revision(sender, instance, created, **kwargs):
     if created:
         Revision.objects.filter(page=instance.page).exclude(pk=instance.pk).update(is_latest=False)
+
+
+class SecretCategory(TreeNode):
+    name = models.CharField(max_length=255)

@@ -1,7 +1,7 @@
 import pytest
 
 from wiki.enums import PageType, PermissionLevel
-from wiki.models import WikiPage
+from wiki.models import SecretCategory, WikiPage
 
 
 @pytest.fixture
@@ -95,3 +95,11 @@ def character(user):
 def revision(wiki_page, user):
     page, _, _, _, _ = wiki_page
     return page.original
+
+
+@pytest.fixture
+def secret_category():
+    parent = SecretCategory.objects.create(name="Parent Category")
+    category = SecretCategory.objects.create(name="Secret Category", parent=parent)
+    SecretCategory.objects.create(name="Child Category", parent=category)
+    return category
