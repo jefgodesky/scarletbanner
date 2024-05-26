@@ -334,3 +334,6 @@ class Secret(models.Model):
 
     def __str__(self):
         return self.key
+
+    def knows(self, character: WikiPage) -> bool:
+        return self.known_to.filter(pk=character.pk).exists()

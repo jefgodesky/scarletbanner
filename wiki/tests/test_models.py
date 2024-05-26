@@ -441,3 +441,16 @@ class TestSecret:
 
     def test_str(self, secret):
         assert str(secret) == "Test Secret"
+
+    def test_knows(self, secret, character):
+        sage, player = character
+        fool = WikiPage.create(
+            page_type=PageType.CHARACTER,
+            title="Jon Snow",
+            slug="jon-snow",
+            body="Knows nothing.",
+            editor=player,
+            owner=player,
+        )
+        assert secret.knows(sage)
+        assert not secret.knows(fool)
