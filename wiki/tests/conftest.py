@@ -1,7 +1,7 @@
 import pytest
 
 from wiki.enums import PageType, PermissionLevel
-from wiki.models import SecretCategory, WikiPage
+from wiki.models import Secret, SecretCategory, WikiPage
 
 
 @pytest.fixture
@@ -103,3 +103,12 @@ def secret_category():
     category = SecretCategory.objects.create(name="Secret Category", parent=parent)
     SecretCategory.objects.create(name="Child Category", parent=category)
     return category
+
+
+@pytest.fixture
+def secret(character, secret_category):
+    page, _ = character
+    secret = Secret.objects.create(key="Test Secret", description="This is a test secret.")
+    secret.categories.set([secret_category])
+    secret.known_to.set([page])
+    return secret

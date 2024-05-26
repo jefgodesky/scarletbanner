@@ -321,3 +321,16 @@ def update_latest_revision(sender, instance, created, **kwargs):
 
 class SecretCategory(TreeNode):
     name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+
+
+class Secret(models.Model):
+    key = models.CharField(max_length=255, unique=True)
+    description = models.TextField(null=True, blank=True)
+    categories = models.ManyToManyField(SecretCategory, related_name="secrets")
+    known_to = models.ManyToManyField(WikiPage, related_name="secrets_known")
+
+    def __str__(self):
+        return self.key
