@@ -23,6 +23,10 @@ class RevisionFactory(DjangoModelFactory):
     write = PermissionLevel.PUBLIC.value
     is_latest = True
 
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        instance.save()
+
     @factory.post_generation
     def set_latest(self, create, extracted, **kwargs):
         if not create:
@@ -31,7 +35,6 @@ class RevisionFactory(DjangoModelFactory):
         if self.page:
             self.page.revisions.update(is_latest=False)
             self.is_latest = True
-            self.save()
 
 
 class WikiPageFactory(DjangoModelFactory):
@@ -56,8 +59,16 @@ class WikiPageFactory(DjangoModelFactory):
         RevisionFactory(page=wiki_page, **revision_kwargs)
         return wiki_page
 
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        instance.save()
+
 
 class CharacterFactory(WikiPageFactory):
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        instance.save()
+
     @factory.post_generation
     def create_revision(self, create, extracted, **kwargs):
         if not create:
@@ -87,6 +98,10 @@ class SecretCategoryFactory(DjangoModelFactory):
     name = factory.Faker("sentence")
     parent = None
 
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        instance.save()
+
 
 class SecretFactory(DjangoModelFactory):
     class Meta:
@@ -94,6 +109,10 @@ class SecretFactory(DjangoModelFactory):
 
     key = factory.Faker("sentence")
     description = factory.Faker("text")
+
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        instance.save()
 
     @factory.post_generation
     def categories(self, create, extracted, **kwargs):
