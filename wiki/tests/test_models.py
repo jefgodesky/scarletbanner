@@ -160,8 +160,8 @@ class TestWikiPage:
 
     def test_editors(self, updated_wiki_page):
         assert len(updated_wiki_page.editors) == 2
-        assert updated_wiki_page.editors[0] == updated_wiki_page.created_by
-        assert updated_wiki_page.editors[1] == updated_wiki_page.revisions.all()[0].editor
+        assert updated_wiki_page.editors[0] == updated_wiki_page.original.editor
+        assert updated_wiki_page.editors[1] == updated_wiki_page.latest.editor
 
     def test_children(self, child_wiki_page):
         assert len(child_wiki_page.parent.children) == 1
