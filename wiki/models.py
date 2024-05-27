@@ -349,10 +349,13 @@ class Secret(models.Model):
 class SecretEvaluator(ast.NodeVisitor):
     def __init__(self, character: WikiPage):
         self.character = character
-        self.secrets = {secret.key: SecretEvaluator.variablize(secret.key) for secret in Secret.objects.all()}
+        self.secrets = {
+            SecretEvaluator.variablize(secret.key): (secret.key, secret.knows(character))
+            for secret in Secret.objects.all()
+        }
 
     def eval(self, expression: str) -> bool:
-        for key, variable in self.secrets.items():
+        for variable, (key, _) in self.secrets.items():
             expression = expression.replace(f"<{key}>", variable)
         tree = ast.parse(expression, mode="eval")
         return self.visit(tree.body)
@@ -367,12 +370,9 @@ class SecretEvaluator(ast.NodeVisitor):
 
     def visit_Name(self, node):
         variable = node.id
-        key = next(key for key, value in self.secrets.items() if value == variable)
-        try:
-            secret = Secret.objects.get(key=key)
-            return secret.knows(self.character)
-        except Secret.DoesNotExist:
-            return False
+        if variable in self.secrets:
+            return self.secrets[variable][1]
+        raise ValueError(f"Unknown secret key: {self.secrets[variable][0]}")
 
     def visit_Expr(self, node):
         return self.visit(node.value)
