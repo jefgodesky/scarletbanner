@@ -3,8 +3,8 @@ from django.contrib.auth import get_user_model
 from django.db.utils import IntegrityError
 
 from wiki.enums import PageType, PermissionLevel
-from wiki.models import Revision, Secret, SecretCategory, WikiPage
-from wiki.tests.factories import CharacterFactory, WikiPageFactory
+from wiki.models import Revision, Secret, SecretCategory, SecretEvaluator, WikiPage
+from wiki.tests.factories import CharacterFactory, SecretFactory, WikiPageFactory
 
 User = get_user_model()
 
@@ -415,3 +415,30 @@ class TestSecret:
         fool = CharacterFactory()
         assert secret.knows(secret.known_to.first())
         assert not secret.knows(fool)
+@pytest.mark.django_db
+class TestSecretEvaluator:
+    def test_evaluate(self):
+        expression, alice, bob, charlie = TestSecretEvaluator.setup()
+        assert not SecretEvaluator(alice).eval(expression)
+        assert SecretEvaluator(bob).eval(expression)
+        assert SecretEvaluator(charlie).eval(expression)
+
+    @staticmethod
+    def setup():
+        alice = CharacterFactory()
+        bob = CharacterFactory()
+        charlie = CharacterFactory()
+
+        secrets = [
+            SecretFactory(),
+            SecretFactory(),
+            SecretFactory(),
+        ]
+
+        secrets[0].known_to.set([alice, bob])
+        secrets[1].known_to.set([bob])
+        secrets[2].known_to.set([charlie])
+
+        keys = [secret.key for secret in secrets]
+        expression = f"(<{keys[0]}> and <{keys[1]}>) or <{keys[2]}>"
+        return expression, alice, bob, charlie

@@ -1,4 +1,6 @@
+import ast
 import datetime
+import re
 
 from django.conf import settings
 from django.db import models
@@ -338,3 +340,40 @@ class Secret(models.Model):
 
     def knows(self, character: WikiPage) -> bool:
         return self.known_to.filter(pk=character.pk).exists()
+class SecretEvaluator(ast.NodeVisitor):
+    def __init__(self, character: WikiPage):
+        self.character = character
+        self.secrets = {secret.key: SecretEvaluator.variablize(secret.key) for secret in Secret.objects.all()}
+
+    def eval(self, expression: str) -> bool:
+        for key, variable in self.secrets.items():
+            expression = expression.replace(f"<{key}>", variable)
+        tree = ast.parse(expression, mode="eval")
+        return self.visit(tree.body)
+
+    def visit_BoolOp(self, node):
+        fn = all if isinstance(node.op, ast.And) else any
+        return fn(self.visit(value) for value in node.values)
+
+    def visit_UnaryOp(self, node):
+        if isinstance(node.op, ast.Not):
+            return not self.visit(node.operand)
+
+    def visit_Name(self, node):
+        variable = node.id
+        key = next(key for key, value in self.secrets.items() if value == variable)
+        try:
+            secret = Secret.objects.get(key=key)
+            return secret.knows(self.character)
+        except Secret.DoesNotExist:
+            return False
+
+    def visit_Expr(self, node):
+        return self.visit(node.value)
+
+    def visit_Module(self, node):
+        return all(self.visit(body) for body in node.body)
+
+    @staticmethod
+    def variablize(key: str) -> str:
+        return re.sub(r"\W|^(?=\d)", "_", key)
