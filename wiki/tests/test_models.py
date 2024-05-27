@@ -4,6 +4,7 @@ from django.db.utils import IntegrityError
 
 from wiki.enums import PageType, PermissionLevel
 from wiki.models import Revision, Secret, SecretCategory, WikiPage
+from wiki.tests.factories import CharacterFactory, WikiPageFactory
 
 User = get_user_model()
 
@@ -57,21 +58,14 @@ class TestWikiPage:
         )
         assert wiki_page.page_type == PageType.CHARACTER
 
-    def test_update_child(self, wiki_page):
-        parent = WikiPage.create(
-            page_type=PageType.PAGE,
-            title="Parent",
-            slug="parent",
-            body="This is the parent page.",
-            read=PermissionLevel.PUBLIC,
-            write=PermissionLevel.PUBLIC,
-            editor=wiki_page.created_by,
+    def test_update_child(self, wiki_page, parent_wiki_page):
+        wiki_page.patch(
+            slug="parent/test", parent=parent_wiki_page, editor=wiki_page.created_by, message="Patching test"
         )
-        wiki_page.patch(slug="parent/test", parent=parent, editor=wiki_page.created_by, message="Patching test")
-        assert wiki_page.parent == parent
+        assert wiki_page.parent == parent_wiki_page
 
     def test_update_not_allowed(self, user, other):
-        page = WikiPage.create(title="Test", body="Test", editor=user, write=PermissionLevel.EDITORS_ONLY)
+        page = WikiPageFactory(write=PermissionLevel.EDITORS_ONLY.value)
         page.update(
             page_type=PageType.PAGE,
             title="Updated",
@@ -82,21 +76,20 @@ class TestWikiPage:
             write=PermissionLevel.PUBLIC,
             read=PermissionLevel.PUBLIC,
         )
-        assert page.title == "Test"
+        assert page.title != "Updated"
 
-    def test_update_no_lockout(self, user):
-        page = WikiPage.create(title="Test", body="Test", editor=user)
-        page.update(
+    def test_update_no_lockout(self, wiki_page):
+        wiki_page.update(
             page_type=PageType.PAGE,
             title="Updated",
             slug="updated",
             body="Updated",
-            editor=user,
+            editor=wiki_page.created_by,
             message="Test update",
             write=PermissionLevel.OWNER_ONLY,
             read=PermissionLevel.PUBLIC,
         )
-        assert page.title == "Test"
+        assert wiki_page.title != "Updated"
 
     def test_patch(self, wiki_page):
         body = wiki_page.body
@@ -198,7 +191,7 @@ class TestWikiPage:
         ],
     )
     def test_can_read(self, request, permission, reader_fixture, expected, user, owner):
-        page = WikiPage.create(title="Test", slug="test", body="Test", editor=user, owner=owner, read=permission)
+        page = WikiPageFactory(editor=user, owner=owner, read=permission.value)
         reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
         assert page.can_read(reader) == expected
 
@@ -333,7 +326,7 @@ class TestWikiPage:
         ],
     )
     def test_can_write(self, request, before, after, reader_fixture, expected, user, owner):
-        page = WikiPage.create(title="Test", slug="test", body="Test", editor=user, owner=owner, write=before)
+        page = WikiPageFactory(editor=user, owner=owner, write=before.value)
         reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
         assert page.can_write(after, reader) == expected
 
@@ -419,13 +412,6 @@ class TestSecret:
         assert str(secret) == secret.key
 
     def test_knows(self, secret, character):
-        fool = WikiPage.create(
-            page_type=PageType.CHARACTER,
-            title="Jon Snow",
-            slug="jon-snow",
-            body="Knows nothing.",
-            editor=character.created_by,
-            owner=character.created_by,
-        )
-        assert secret.knows(character)
+        fool = CharacterFactory()
+        assert secret.knows(secret.known_to.first())
         assert not secret.knows(fool)
