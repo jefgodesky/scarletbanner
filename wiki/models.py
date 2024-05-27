@@ -340,6 +340,12 @@ class Secret(models.Model):
 
     def knows(self, character: WikiPage) -> bool:
         return self.known_to.filter(pk=character.pk).exists()
+
+    @staticmethod
+    def evaluate(expression: str, character: WikiPage) -> bool:
+        return SecretEvaluator(character).eval(expression)
+
+
 class SecretEvaluator(ast.NodeVisitor):
     def __init__(self, character: WikiPage):
         self.character = character

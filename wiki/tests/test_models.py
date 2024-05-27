@@ -415,6 +415,14 @@ class TestSecret:
         fool = CharacterFactory()
         assert secret.knows(secret.known_to.first())
         assert not secret.knows(fool)
+
+    def test_evaluate(self):
+        expression, alice, bob, charlie = TestSecretEvaluator.setup()
+        assert not Secret.evaluate(expression, alice)
+        assert Secret.evaluate(expression, bob)
+        assert Secret.evaluate(expression, charlie)
+
+
 @pytest.mark.django_db
 class TestSecretEvaluator:
     def test_evaluate(self):
