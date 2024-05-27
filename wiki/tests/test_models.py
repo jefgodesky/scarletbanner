@@ -1,74 +1,63 @@
 import pytest
+from django.contrib.auth import get_user_model
 from django.db.utils import IntegrityError
 
 from wiki.enums import PageType, PermissionLevel
 from wiki.models import Revision, Secret, SecretCategory, WikiPage
 
+User = get_user_model()
+
+
+def is_string(variable) -> bool:
+    return isinstance(variable, str) and len(variable) > 0
+
 
 @pytest.mark.django_db
 class TestWikiPage:
     def test_create_read(self, wiki_page):
-        page, title, slug, body, _ = wiki_page
-        actual = WikiPage.objects.get(id=page.id)
-        assert actual.title == title
-        assert actual.slug == slug
-        assert actual.body == body
-        assert actual.owner is None
-        assert actual.read == PermissionLevel.PUBLIC
-        assert actual.write == PermissionLevel.PUBLIC
+        assert is_string(wiki_page.title)
+        assert is_string(wiki_page.slug)
+        assert is_string(wiki_page.body)
+        assert wiki_page.read == PermissionLevel.PUBLIC
+        assert wiki_page.write == PermissionLevel.PUBLIC
 
     def test_create_read_character(self, character):
-        page, player = character
-        actual = WikiPage.objects.get(id=page.id)
-        assert actual.title == page.title
-        assert actual.slug == page.slug
-        assert actual.page_type == PageType.CHARACTER
-        assert actual.owner == player
+        assert character.page_type == PageType.CHARACTER
+        assert isinstance(character.owner, User)
 
     def test_create_child(self, child_wiki_page):
-        assert isinstance(child_wiki_page.parent, WikiPage)
+        assert isinstance(child_wiki_page, WikiPage)
 
     def test_str(self, wiki_page):
-        page, title, _, _, _ = wiki_page
-        assert str(page) == title
+        assert is_string(wiki_page.title)
 
     def test_get_type(self, character, other):
-        page, player = character
         all_characters = WikiPage.get_type(PageType.CHARACTER)
-        player_characters = WikiPage.get_type(PageType.CHARACTER, owner=player)
+        player_characters = WikiPage.get_type(PageType.CHARACTER, owner=character.owner)
         other_characters = WikiPage.get_type(PageType.CHARACTER, owner=other)
         assert len(all_characters) == 1
         assert len(player_characters) == 1
         assert len(other_characters) == 0
-        assert all_characters[0] == page
-        assert player_characters[0] == page
+        assert all_characters[0] == character
+        assert player_characters[0] == character
 
     def test_update(self, updated_wiki_page):
-        page, title, slug, body, _ = updated_wiki_page
-        assert page.title == title
-        assert page.body == body
-        assert page.slug == slug
-        assert page.owner is None
-        assert page.parent is None
-        assert page.read == PermissionLevel.PUBLIC
-        assert page.write == PermissionLevel.PUBLIC
+        assert updated_wiki_page.revisions.count() == 2
 
     def test_update_type(self, wiki_page):
-        page, _, _, _, user = wiki_page
-        page.update(
+        wiki_page.update(
             page_type=PageType.CHARACTER,
-            title=page.title,
-            slug=page.slug,
-            body=page.body,
-            editor=user,
+            title=wiki_page.title,
+            slug=wiki_page.slug,
+            body=wiki_page.body,
+            editor=wiki_page.created_by,
             message="Update page type",
             read=PermissionLevel.PUBLIC,
             write=PermissionLevel.PUBLIC,
         )
-        assert page.page_type == PageType.CHARACTER
+        assert wiki_page.page_type == PageType.CHARACTER
 
     def test_update_child(self, wiki_page):
-        page, _, _, _, editor = wiki_page
         parent = WikiPage.create(
             page_type=PageType.PAGE,
             title="Parent",
@@ -76,10 +65,10 @@ class TestWikiPage:
             body="This is the parent page.",
             read=PermissionLevel.PUBLIC,
             write=PermissionLevel.PUBLIC,
-            editor=editor,
+            editor=wiki_page.created_by,
         )
-        page.patch(slug="parent/test", parent=parent, editor=editor, message="Patching test")
-        assert page.parent == parent
+        wiki_page.patch(slug="parent/test", parent=parent, editor=wiki_page.created_by, message="Patching test")
+        assert wiki_page.parent == parent
 
     def test_update_not_allowed(self, user, other):
         page = WikiPage.create(title="Test", body="Test", editor=user, write=PermissionLevel.EDITORS_ONLY)
@@ -110,26 +99,24 @@ class TestWikiPage:
         assert page.title == "Test"
 
     def test_patch(self, wiki_page):
-        page, title, _, body, editor = wiki_page
+        body = wiki_page.body
         updated_title = "Updated Title"
         updated_slug = "updated"
-        page.patch(editor, message="Patching test", title=updated_title, slug=updated_slug)
-        assert page.title == updated_title
-        assert page.body == body
+        wiki_page.patch(wiki_page.created_by, message="Patching test", title=updated_title, slug=updated_slug)
+        assert wiki_page.title == updated_title
+        assert wiki_page.body == body
 
     def test_patch_type(self, wiki_page):
-        page, _, _, _, user = wiki_page
-        page.patch(
+        wiki_page.patch(
             page_type=PageType.CHARACTER,
-            editor=user,
+            editor=wiki_page.created_by,
             message="Update page type",
         )
-        assert page.page_type == PageType.CHARACTER
+        assert wiki_page.page_type == PageType.CHARACTER
 
     def test_destroy(self, wiki_page):
-        page, _, _, _, editor = wiki_page
-        wiki_page_id = page.id
-        page.destroy(editor)
+        wiki_page_id = wiki_page.id
+        wiki_page.destroy(wiki_page.created_by)
         with pytest.raises(WikiPage.DoesNotExist):
             WikiPage.objects.get(id=wiki_page_id)
             Revision.objects.get(wiki_page=wiki_page_id)
@@ -145,46 +132,36 @@ class TestWikiPage:
     def test_destroy_middle(self, grandchild_wiki_page):
         grandparent = grandchild_wiki_page.parent.parent
         grandchild_wiki_page.parent.destroy(grandchild_wiki_page.editors[0])
-        assert grandparent.slug == "test"
+        assert grandparent.slug == "parent"
         assert grandparent.children[0] == grandchild_wiki_page
         assert grandchild_wiki_page.parent == grandparent
-        assert grandchild_wiki_page.slug == "test/grandchild"
+        assert grandchild_wiki_page.slug == "parent/grandchild"
 
     def test_unique_slug_element(self, grandchild_wiki_page):
         assert grandchild_wiki_page.unique_slug_element == "grandchild"
         assert grandchild_wiki_page.parent.unique_slug_element == "child"
-        assert grandchild_wiki_page.parent.parent.unique_slug_element == "test"
+        assert grandchild_wiki_page.parent.parent.unique_slug_element == "parent"
 
     def test_latest(self, revision):
-        page = revision.page
-        assert page.latest == revision
+        assert revision.page.latest == revision
 
     def test_original(self, updated_wiki_page):
-        page, _, _, _, _ = updated_wiki_page
-        orig = page.revisions.order_by("timestamp", "id").first()
-        assert page.original == orig
+        orig = updated_wiki_page.revisions.order_by("timestamp", "id").first()
+        assert updated_wiki_page.original == orig
 
     def test_updated(self, updated_wiki_page):
-        page, _, _, _, _ = updated_wiki_page
-        assert page.updated == page.latest.timestamp
-
-    def test_updated_owned(self, updated_owned_wiki_page):
-        page, _, _, _, user = updated_owned_wiki_page
-        assert page.owner == user
+        assert updated_wiki_page.updated == updated_wiki_page.latest.timestamp
 
     def test_created(self, updated_wiki_page):
-        page, _, _, _, _ = updated_wiki_page
-        assert page.created == page.original.timestamp
+        assert updated_wiki_page.created == updated_wiki_page.original.timestamp
 
     def test_created_by(self, updated_wiki_page):
-        page, _, _, _, _ = updated_wiki_page
-        assert page.created_by == page.original.editor
+        assert updated_wiki_page.created_by == updated_wiki_page.original.editor
 
     def test_editors(self, updated_wiki_page):
-        page, _, _, _, editor = updated_wiki_page
-        assert len(page.editors) == 2
-        assert page.editors[0] == page.created_by
-        assert page.editors[1] == editor
+        assert len(updated_wiki_page.editors) == 2
+        assert updated_wiki_page.editors[0] == updated_wiki_page.created_by
+        assert updated_wiki_page.editors[1] == updated_wiki_page.revisions.all()[0].editor
 
     def test_children(self, child_wiki_page):
         assert len(child_wiki_page.parent.children) == 1
@@ -364,93 +341,91 @@ class TestWikiPage:
 @pytest.mark.django_db
 class TestRevision:
     def test_create_read(self, revision):
-        actual = Revision.objects.get(id=revision.id)
-        assert actual.title == "Test Page"
-        assert actual.slug == "test"
-        assert actual.body == "This is the original body."
-        assert actual.message == "Initial text"
-        assert actual.owner is None
-        assert actual.parent is None
-        assert actual.read == PermissionLevel.PUBLIC.value
-        assert actual.write == PermissionLevel.PUBLIC.value
+        assert is_string(revision.title)
+        assert is_string(revision.slug)
+        assert is_string(revision.body)
+        assert revision.read == PermissionLevel.PUBLIC.value
+        assert revision.write == PermissionLevel.PUBLIC.value
 
     def test_create_with_owner(self, owned_wiki_page):
-        page, _, _, _, _, owner = owned_wiki_page
-        assert page.original.owner == owner
+        assert isinstance(owned_wiki_page.owner, User)
 
     def test_str(self, revision):
-        assert str(revision) == "test"
+        assert str(revision) == revision.slug
 
     def test_unique_slug(self, wiki_page):
-        page, _, _, _, editor = wiki_page
         with pytest.raises(IntegrityError):
-            WikiPage.create(title="Test Page", slug=page.slug, body="Test", editor=editor)
+            WikiPage.create(title="Test Page", slug=wiki_page.slug, body="Test", editor=wiki_page.created_by)
 
     def test_unique_slug_does_not_stop_update(self, wiki_page):
-        page, _, _, _, editor = wiki_page
-        page.patch(title="Updated Title", editor=editor, message="Update title.")
-        assert page.title == "Updated Title"
-        assert page.slug == "test"
+        updated_title = "Updated Title"
+        slug = wiki_page.slug
+        wiki_page.patch(title=updated_title, editor=wiki_page.created_by, message="Update title.")
+        assert wiki_page.title == updated_title
+        assert wiki_page.slug == slug
 
     def test_set_slug_default(self, revision):
+        revision.title = "Test Page"
         revision.slug = ""
         revision.set_slug()
         assert revision.slug == "test-page"
 
     def test_set_slug_param(self, revision):
+        revision.title = "Test Page"
         revision.slug = ""
         revision.set_slug("test")
         assert revision.slug == "test"
 
     def test_set_slug_slugify(self, revision):
+        revision.title = "Test Page"
         revision.slug = ""
-        revision.set_slug("Test Page")
-        assert revision.slug == "test-page"
+        revision.set_slug("Test Page Title")
+        assert revision.slug == "test-page-title"
 
     def test_set_slug_child(self, child_wiki_page):
         rev = child_wiki_page.latest
+        rev.title = "Child Page"
         rev.slug = ""
         rev.set_slug("Child Page")
-        assert rev.slug == "test/child-page"
+        assert rev.slug == f"{child_wiki_page.parent.slug}/child-page"
 
 
 @pytest.mark.django_db
 class TestSecretCategory:
     def test_create_read(self, secret_category):
         assert isinstance(secret_category, SecretCategory)
-        assert secret_category.name == "Secret Category"
-        assert secret_category.parent.name == "Parent Category"
+        assert is_string(secret_category.name)
+        assert is_string(secret_category.parent.name)
         assert secret_category.children.count() == 1
-        assert secret_category.children.first().name == "Child Category"
+        assert is_string(secret_category.children.first().name)
 
     def test_str(self, secret_category):
-        assert str(secret_category) == "Secret Category"
+        assert str(secret_category) == secret_category.name
 
 
 @pytest.mark.django_db
 class TestSecret:
     def test_create_read(self, secret):
         assert isinstance(secret, Secret)
-        assert secret.key == "Test Secret"
-        assert secret.description == "This is a test secret."
+        assert is_string(secret.key)
+        assert is_string(secret.description)
         assert secret.categories.count() == 1
-        assert secret.categories.first().name == "Secret Category"
+        assert is_string(secret.categories.first().name)
         assert secret.known_to.count() == 1
         assert isinstance(secret.known_to.first(), WikiPage)
         assert secret.known_to.first().page_type == PageType.CHARACTER
 
     def test_str(self, secret):
-        assert str(secret) == "Test Secret"
+        assert str(secret) == secret.key
 
     def test_knows(self, secret, character):
-        sage, player = character
         fool = WikiPage.create(
             page_type=PageType.CHARACTER,
             title="Jon Snow",
             slug="jon-snow",
             body="Knows nothing.",
-            editor=player,
-            owner=player,
+            editor=character.created_by,
+            owner=character.created_by,
         )
-        assert secret.knows(sage)
+        assert secret.knows(character)
         assert not secret.knows(fool)

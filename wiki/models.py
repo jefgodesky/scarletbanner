@@ -14,6 +14,11 @@ from scarletbanner.users.models import User
 from wiki.enums import PageType, PermissionLevel
 
 
+def get_unique_slug_element(slug: str) -> str:
+    parts = [part for part in slug.split("/")]
+    return parts[-1]
+
+
 class WikiPage(models.Model):
     def __str__(self) -> str:
         return self.latest.title
@@ -40,8 +45,7 @@ class WikiPage(models.Model):
 
     @property
     def unique_slug_element(self) -> str:
-        parts = [part for part in self.slug.split("/")]
-        return parts[-1]
+        return get_unique_slug_element(self.slug)
 
     @property
     def body(self) -> str:
@@ -297,10 +301,7 @@ class Revision(models.Model):
         super().save(*args, **kwargs)
 
     def set_slug(self, slug: str or None = None):
-        root = self.title if slug is None else slug
-        parts = [slugify(part) for part in root.split("/")]
-        slug = "/".join(parts)
-
+        slug = slugify(self.title) if slug is None else slugify(get_unique_slug_element(slug))
         if self.parent is not None:
             slug = f"{self.parent.slug}/{slug}"
 
