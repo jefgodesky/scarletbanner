@@ -3,15 +3,17 @@
   {% for child in category.get_children %}
     {% include "admin/tree_node.html" with category=child add_category_url=add_category_url add_item_url=add_item_url %}
   {% endfor %}
-  <a href="{{ add_category_url }}?parent={{ category.pk }}" class="addlink btn">Add Subcategory</a>
+  <a href="{{ add_category_url }}?parent={{ category.pk }}"
+     class="addlink btn">Add Subcategory</a>
   {% if category.secrets.exists %}
-  <ul>
-    {% for secret in category.secrets.all %}
-      <li>
-        <a href="{% url 'admin:wiki_secret_change' secret.pk %}">{{ secret.key }}</a>
-      </li>
-    {% endfor %}
-  </ul>
+    <ul>
+      {% for secret in category.secrets.all %}
+        <li>
+          <a href="{% url 'admin:wiki_secret_change' secret.pk %}">{{ secret.key }}</a>
+        </li>
+      {% endfor %}
+    </ul>
   {% endif %}
-  <a href="{{ add_item_url }}?categories={{ category.pk }}" class="addlink btn">Add New Secret</a>
+  <a href="{{ add_item_url }}?categories={{ category.pk }}"
+     class="addlink btn">Add New Secret</a>
 </details>

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.shortcuts import render
-from django.urls import path, reverse
+from django.urls import reverse
 
 from wiki.enums import PageType, PermissionLevel
 from wiki.forms import WikiPageForm
@@ -87,7 +87,7 @@ class WikiPageAdmin(admin.ModelAdmin):
 class SecretAdmin(admin.ModelAdmin):
     change_list_template = "admin/tree.html"
 
-    def changelist_view(self, request, extra_context = None):
+    def changelist_view(self, request, extra_context=None):
         root_categories = SecretCategory.objects.filter(parent=None).prefetch_related("children", "secrets")
         context = dict(
             self.admin_site.each_context(request),
