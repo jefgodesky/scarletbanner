@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  {% if categories %}
+  {% for category in categories %}
+    {% include "admin/tree_node.html" with category=category add_category_url=add_category_url add_item_url=add_item_url %}
+  {% endfor %}
+  {% else %}
+    <div class="null">
+      <p>No categories found.</p>
+      <a href="{{ add_category_url }}" class="addlink">Add New Category</a>
+    </div>
+  {% endif %}
+
+{% endblock %}

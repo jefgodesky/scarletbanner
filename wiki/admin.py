@@ -1,8 +1,10 @@
 from django.contrib import admin
+from django.shortcuts import render
+from django.urls import path, reverse
 
 from wiki.enums import PageType, PermissionLevel
 from wiki.forms import WikiPageForm
-from wiki.models import Revision, WikiPage
+from wiki.models import Revision, Secret, SecretCategory, WikiPage
 
 
 class RevisionInline(admin.TabularInline):
@@ -79,3 +81,37 @@ class WikiPageAdmin(admin.ModelAdmin):
             write=PermissionLevel(form.cleaned_data["write"]),
         )
         obj.save()
+
+
+@admin.register(Secret)
+class SecretAdmin(admin.ModelAdmin):
+    change_list_template = "admin/tree.html"
+
+    def changelist_view(self, request, extra_context = None):
+        root_categories = SecretCategory.objects.filter(parent=None).prefetch_related("children", "secrets")
+        context = dict(
+            self.admin_site.each_context(request),
+            title="Secrets",
+            categories=root_categories,
+            add_category_url=reverse("admin:wiki_secretcategory_add"),
+            add_item_url=reverse("admin:wiki_secret_add"),
+        )
+        return render(request, "admin/tree.html", context)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if "categories" in request.GET:
+            form.base_fields["categories"].initial = [request.GET["categories"]]
+        return form
+
+
+@admin.register(SecretCategory)
+class SecretCategoryAdmin(admin.ModelAdmin):
+    def get_model_perms(self, request):
+        return {}
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if "parent" in request.GET:
+            form.base_fields["parent"].initial = request.GET["parent"]
+        return form

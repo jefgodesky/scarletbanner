@@ -1,0 +1,30 @@
+.null {
+  background: var(--selected-bg);
+  border: 1px solid var(--hairline-color);
+  margin: 2rem auto;
+  padding: 2em;
+  text-align: center;
+}
+
+.addlink.btn {
+  display: block;
+  margin: 1rem auto;
+}
+
+.tree {
+  background: var(--selected-bg);
+  border: 1px solid var(--hairline-color);
+  padding: 1rem;
+}
+
+.tree summary {
+  border-bottom: 1px solid var(--hairline-color);
+  cursor: pointer;
+  font-weight: bold;
+  padding: 1rem;
+  margin: -1rem;
+}
+
+.tree[open] summary {
+  margin: -1rem -1rem 1rem -1rem;
+}
