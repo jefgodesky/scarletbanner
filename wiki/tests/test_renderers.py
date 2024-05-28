@@ -1,6 +1,6 @@
 import pytest
 
-from wiki.renderers import render_secrets
+from wiki.renderers import reconcile_secrets, render_secrets
 from wiki.tests.factories import SecretFactory
 
 
@@ -46,3 +46,24 @@ class TestRenderSecrets:
         expected = 'Public <secret show="[S1]" sid="1">known</secret> <secret sid="2"></secret>'
         print(render_secrets(before, character, editable=True))
         assert render_secrets(before, character, editable=True) == expected
+
+
+class TestReconcileSecrets:
+    def test_reconciliation(self):
+        original = (
+            'before <secret show="[S1]" sid="1">first '
+            '<secret show="[S2]" sid="2">inner</secret></secret>'
+            'middle <secret show="[S3]" sid="3">last</secret> after'
+        )
+        edited = (
+            'one <secret show="[S1]" sid="1">updated <secret sid="2">'
+            '</secret></secret> <secret show="[S4]">new</secret> two '
+            '<secret sid="3"></secret>'
+        )
+        expected = (
+            'one <secret show="[S1]">updated <secret '
+            'show="[S2]">inner</secret></secret> <secret '
+            'show="[S4]">new</secret> two '
+            '<secret show="[S3]">last</secret>'
+        )
+        assert reconcile_secrets(original, edited) == expected
