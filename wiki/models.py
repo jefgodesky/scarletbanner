@@ -360,7 +360,7 @@ class SecretEvaluator(ast.NodeVisitor):
 
     def eval(self, expression: str) -> bool:
         for variable, (key, _) in self.secrets.items():
-            expression = expression.replace(f"<{key}>", variable)
+            expression = expression.replace(f"[{key}]", variable)
         tree = ast.parse(expression, mode="eval")
         return self.visit(tree.body)
 

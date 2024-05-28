@@ -448,5 +448,5 @@ class TestSecretEvaluator:
         secrets[2].known_to.set([charlie])
 
         keys = [secret.key for secret in secrets]
-        expression = f"(<{keys[0]}> and <{keys[1]}>) or <{keys[2]}>"
+        expression = f"([{keys[0]}] and [{keys[1]}]) or [{keys[2]}]"
         return expression, alice, bob, charlie
