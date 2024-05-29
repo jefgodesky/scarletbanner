@@ -66,6 +66,9 @@ def render_templates(original: str) -> str:
     def process_templates(content: str) -> str:
         soup = BeautifulSoup(content, "html.parser")
 
+        for include_only in soup.find_all("includeonly"):
+            include_only.unwrap()
+
         for no_include in soup.find_all("noinclude"):
             no_include.replace_with("")
 
