@@ -1,7 +1,7 @@
 import pytest
 
 from wiki.enums import PageType
-from wiki.renderers import reconcile_secrets, render_secrets, render_template_pages, render_templates
+from wiki.renderers import reconcile_secrets, render_links, render_secrets, render_template_pages, render_templates
 from wiki.tests.factories import SecretFactory, WikiPageFactory
 
 
@@ -121,3 +121,29 @@ class TestRenderTemplatePage:
     def test_include_only(self):
         before = "<includeonly>Hello, world!</includeonly> <noinclude>X</noinclude>"
         assert render_template_pages(before) == "X"
+
+
+@pytest.mark.django_db
+class TestRenderLinks:
+    def test_no_links(self):
+        before = "Hello, world!"
+        assert render_links(before) == before
+
+    def test_basic_link(self):
+        WikiPageFactory(title="Test Page", slug="test")
+        before = "Before [[Test Page]] After"
+        assert render_links(before) == 'Before <a href="/wiki/test/">Test Page</a> After'
+
+    def test_link_does_not_exist(self):
+        before = "Before [[Test Page]] After"
+        assert render_links(before) == 'Before <a href="/wiki/create/?title=Test+Page" class="new">Test Page</a> After'
+
+    def test_alias_link(self):
+        WikiPageFactory(title="Test Page", slug="test")
+        before = "This is a [[Test Page | test]]."
+        assert render_links(before) == 'This is a <a href="/wiki/test/">test</a>.'
+
+    def test_slug_link(self):
+        WikiPageFactory(title="Test Page", slug="test")
+        before = "This is a [[ /wiki/test | test]]."
+        assert render_links(before) == 'This is a <a href="/wiki/test/">test</a>.'

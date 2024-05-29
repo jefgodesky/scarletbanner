@@ -1,6 +1,9 @@
 import re
+from urllib.parse import quote_plus, urlencode
 
 from bs4 import BeautifulSoup
+from django.db.models import Q
+from django.urls import reverse
 
 from wiki.enums import PageType
 from wiki.models import Revision, Secret, WikiPage
@@ -104,3 +107,29 @@ def render_template_pages(original: str) -> str:
         no_include.unwrap()
 
     return str(soup).strip()
+
+
+def render_links(original: str) -> str:
+    def replace_link(match) -> str:
+        content = match.group(1).strip()
+
+        if "|" in content:
+            key, text = map(str.strip, content.split("|", 1))
+        else:
+            key = text = content.strip()
+
+        slug_prefix = "/wiki/"
+        slug = key[len(slug_prefix) :].rstrip("/") if key.startswith(slug_prefix) else key
+        page = Revision.objects.filter(is_latest=True).filter(Q(title=key) | Q(slug=slug)).first()
+
+        if page:
+            url = reverse("wiki:page", kwargs={"slug": page.slug})
+            return f'<a href="{url}">{text}</a>'
+        else:
+            payload = {"title": key}
+            querystring = urlencode(payload, quote_via=quote_plus)
+            url = reverse("wiki:create") + "?" + querystring
+            return f'<a href="{url}" class="new">{text}</a>'
+
+    regex = re.compile(r"\[\[(.*?)\]\]")
+    return regex.sub(replace_link, original)
