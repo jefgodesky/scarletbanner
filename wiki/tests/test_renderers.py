@@ -99,6 +99,11 @@ class TestRenderTemplates:
         before = '<template name="Test Template" text="X"></template>'
         assert render_templates(before) == "X X X X"
 
+    def test_body(self):
+        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body="{{ body }}")
+        before = '<template name="Test Template">Hello, world!</template>'
+        assert render_templates(before) == "Hello, world!"
+
     def test_no_include(self):
         body = "Hello, world! <noinclude>X</noinclude>"
         WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body=body)

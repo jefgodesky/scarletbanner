@@ -81,6 +81,7 @@ def render_templates(original: str) -> str:
             name = instance.get("name")
             if name:
                 params = {attr: instance.get(attr) for attr in instance.attrs if attr != "name"}
+                params["body"] = "".join(str(child) for child in instance.contents).strip()
                 try:
                     page = Revision.objects.get(is_latest=True, page_type=PageType.TEMPLATE.value, title=name)
                     body = page.body
