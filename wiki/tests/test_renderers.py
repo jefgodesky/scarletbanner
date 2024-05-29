@@ -1,7 +1,7 @@
 import pytest
 
 from wiki.enums import PageType
-from wiki.renderers import reconcile_secrets, render_secrets, render_templates
+from wiki.renderers import reconcile_secrets, render_secrets, render_template_pages, render_templates
 from wiki.tests.factories import SecretFactory, WikiPageFactory
 
 
@@ -107,3 +107,17 @@ class TestRenderTemplates:
         )
         before = '<template name="Outer Template"></template>'
         assert render_templates(before) == "Hello, world!"
+
+
+class TestRenderTemplatePage:
+    def test_no_tags(self):
+        before = "Hello, world!"
+        assert render_template_pages(before) == before
+
+    def test_no_include(self):
+        before = "Hello, world! <noinclude>X</noinclude>"
+        assert render_template_pages(before) == "Hello, world! X"
+
+    def test_include_only(self):
+        before = "<includeonly>Hello, world!</includeonly> <noinclude>X</noinclude>"
+        assert render_template_pages(before) == "X"

@@ -92,3 +92,15 @@ def render_templates(original: str) -> str:
         return str(soup).strip()
 
     return process_templates(original)
+
+
+def render_template_pages(original: str) -> str:
+    soup = BeautifulSoup(original, "html.parser")
+
+    for include_only in soup.find_all("includeonly"):
+        include_only.replace_with("")
+
+    for no_include in soup.find_all("noinclude"):
+        no_include.unwrap()
+
+    return str(soup).strip()
