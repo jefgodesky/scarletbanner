@@ -1,7 +1,14 @@
 import pytest
 
 from wiki.enums import PageType
-from wiki.renderers import reconcile_secrets, render_links, render_secrets, render_template_pages, render_templates
+from wiki.renderers import (
+    reconcile_secrets,
+    render_links,
+    render_markdown,
+    render_secrets,
+    render_template_pages,
+    render_templates,
+)
 from wiki.tests.factories import SecretFactory, WikiPageFactory
 
 
@@ -153,3 +160,17 @@ class TestRenderLinks:
         WikiPageFactory(title="Test Page", slug="test")
         before = "This is a [[ /wiki/test | test]]."
         assert render_links(before) == 'This is a <a href="/wiki/test/">test</a>.'
+
+
+class TestRenderMarkdown:
+    def test_basic(self):
+        before = "**bold** _italic_"
+        assert render_markdown(before) == "<p><strong>bold</strong> <em>italic</em></p>"
+
+    def test_html(self):
+        before = "<div>Hello, world!</div>"
+        assert render_markdown(before) == before
+
+    def test_sanitize(self):
+        before = "<script></script>\n\n<body></body>\n\n<head></head>\n\nBefore\n\n<div>Hello, world!</div>\n\nAfter"
+        assert render_markdown(before) == "<p>Before</p>\n<div>Hello, world!</div>\n<p>After</p>"
