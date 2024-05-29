@@ -1,7 +1,8 @@
 import pytest
 
-from wiki.renderers import reconcile_secrets, render_secrets
-from wiki.tests.factories import SecretFactory
+from wiki.enums import PageType
+from wiki.renderers import reconcile_secrets, render_secrets, render_templates
+from wiki.tests.factories import SecretFactory, WikiPageFactory
 
 
 @pytest.mark.django_db
@@ -67,3 +68,26 @@ class TestReconcileSecrets:
             '<secret show="[S3]">last</secret>'
         )
         assert reconcile_secrets(original, edited) == expected
+
+
+@pytest.mark.django_db
+class TestRenderTemplates:
+    def test_no_templates(self):
+        before = "Hello, world!"
+        assert render_templates(before) == before
+
+    def test_simple_template(self):
+        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body="Hello, world!")
+        before = '<template name="Test Template"></template>'
+        assert render_templates(before) == "Hello, world!"
+
+    def test_with_params(self):
+        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body="{{ text }}")
+        before = '<template name="Test Template" text="Hello, world!"></template>'
+        assert render_templates(before) == "Hello, world!"
+
+    def test_no_include(self):
+        body = "Hello, world! <noinclude>X</noinclude>"
+        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body=body)
+        before = '<template name="Test Template"></template>'
+        assert render_templates(before) == "Hello, world!"

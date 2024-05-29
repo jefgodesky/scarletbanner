@@ -2,7 +2,8 @@ import re
 
 from bs4 import BeautifulSoup
 
-from wiki.models import Secret, WikiPage
+from wiki.enums import PageType
+from wiki.models import Revision, Secret, WikiPage
 
 
 def render_secrets(original: str, character: WikiPage, editable: bool = False) -> str:
@@ -59,3 +60,31 @@ def reconcile_secrets(original: str, edited: str) -> str:
             del tag["sid"]
 
     return str(edited_soup).strip()
+
+
+def render_templates(original: str) -> str:
+    soup = BeautifulSoup(original, "html.parser")
+
+    for template_call in soup.find_all("template"):
+        name = template_call.get("name")
+        if name:
+            params = {attr: template_call.get(attr) for attr in template_call.attrs if attr != "name"}
+            try:
+                page = Revision.objects.get(is_latest=True, page_type=PageType.TEMPLATE.value, title=name)
+                content = page.body
+                template_soup = BeautifulSoup(content, "html.parser")
+
+                for no_include in template_soup.find_all("noinclude"):
+                    no_include.replace_with("")
+
+                content = str(template_soup).strip()
+
+                for key, value in params.items():
+                    placeholder = f"{{{{ {key} }}}}"
+                    content = content.replace(placeholder, value)
+
+                template_call.replace_with(content)
+            except Revision.DoesNotExist:
+                template_call.replace_with("")
+
+    return str(soup).strip()

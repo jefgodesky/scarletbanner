@@ -3,6 +3,7 @@ from enum import Enum
 
 class PageType(Enum):
     PAGE = "page"
+    TEMPLATE = "template"
     CHARACTER = "character"
 
 
