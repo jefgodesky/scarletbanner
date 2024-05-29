@@ -188,3 +188,10 @@ def render_markdown(original: str) -> str:
             tag.extract()
 
     return str(soup).strip()
+
+
+def render(original: str, character: WikiPage) -> str:
+    redacted = render_secrets(original, character)
+    templated = render_templates(redacted)
+    linked = render_links(templated)
+    return render_markdown(linked)

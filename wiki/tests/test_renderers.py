@@ -3,6 +3,7 @@ import pytest
 from wiki.enums import PageType
 from wiki.renderers import (
     reconcile_secrets,
+    render,
     render_links,
     render_markdown,
     render_secrets,
@@ -179,3 +180,10 @@ class TestRenderMarkdown:
     def test_sanitize(self):
         before = "<script></script>\n\n<body></body>\n\n<head></head>\n\nBefore\n\n<div>Hello, world!</div>\n\nAfter"
         assert render_markdown(before) == "<p>Before</p>\n<div>Hello, world!</div>\n<p>After</p>"
+
+
+@pytest.mark.django_db
+class TestRender:
+    def test_basic(self, character):
+        before = "**bold** _italic_"
+        assert render(before, character) == "<p><strong>bold</strong> <em>italic</em></p>"
