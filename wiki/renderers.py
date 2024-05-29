@@ -84,8 +84,8 @@ def render_templates(original: str) -> str:
                     body = page.body
 
                     for key, value in params.items():
-                        placeholder = f"{{{{ {key} }}}}"
-                        body = body.replace(placeholder, value)
+                        placeholder = re.compile(rf"{{{{\s*{key}\s*}}}}")
+                        body = placeholder.sub(value, body)
 
                     body = process_templates(body)
                     instance.replace_with(body)
