@@ -1,6 +1,7 @@
 import ast
 import datetime
 import re
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -346,16 +347,17 @@ class Secret(models.Model):
         return self.known_to.filter(pk=character.pk).exists()
 
     @staticmethod
-    def evaluate(expression: str, character: WikiPage) -> bool:
-        return SecretEvaluator(character).eval(expression)
+    def evaluate(expression: str, character: WikiPage, secrets: Any = None) -> bool:
+        secrets = Secret.objects.all() if secrets is None else secrets
+        return SecretEvaluator(character, secrets).eval(expression)
 
 
 class SecretEvaluator(ast.NodeVisitor):
-    def __init__(self, character: WikiPage):
+    def __init__(self, character: WikiPage, secrets: Any = None):
+        secrets = Secret.objects.all() if secrets is None else secrets
         self.character = character
         self.secrets = {
-            SecretEvaluator.variablize(secret.key): (secret.key, secret.knows(character))
-            for secret in Secret.objects.all()
+            SecretEvaluator.variablize(secret.key): (secret.key, secret.knows(character)) for secret in secrets
         }
 
     def eval(self, expression: str) -> bool:
