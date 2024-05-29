@@ -63,28 +63,29 @@ def reconcile_secrets(original: str, edited: str) -> str:
 
 
 def render_templates(original: str) -> str:
-    soup = BeautifulSoup(original, "html.parser")
+    def process_templates(content: str) -> str:
+        soup = BeautifulSoup(content, "html.parser")
 
-    for template_call in soup.find_all("template"):
-        name = template_call.get("name")
-        if name:
-            params = {attr: template_call.get(attr) for attr in template_call.attrs if attr != "name"}
-            try:
-                page = Revision.objects.get(is_latest=True, page_type=PageType.TEMPLATE.value, title=name)
-                content = page.body
-                template_soup = BeautifulSoup(content, "html.parser")
+        for no_include in soup.find_all("noinclude"):
+            no_include.replace_with("")
 
-                for no_include in template_soup.find_all("noinclude"):
-                    no_include.replace_with("")
+        for instance in soup.find_all("template"):
+            name = instance.get("name")
+            if name:
+                params = {attr: instance.get(attr) for attr in instance.attrs if attr != "name"}
+                try:
+                    page = Revision.objects.get(is_latest=True, page_type=PageType.TEMPLATE.value, title=name)
+                    body = page.body
 
-                content = str(template_soup).strip()
+                    for key, value in params.items():
+                        placeholder = f"{{{{ {key} }}}}"
+                        body = body.replace(placeholder, value)
 
-                for key, value in params.items():
-                    placeholder = f"{{{{ {key} }}}}"
-                    content = content.replace(placeholder, value)
+                    body = process_templates(body)
+                    instance.replace_with(body)
+                except Revision.DoesNotExist:
+                    instance.replace_with("")
 
-                template_call.replace_with(content)
-            except Revision.DoesNotExist:
-                template_call.replace_with("")
+        return str(soup).strip()
 
-    return str(soup).strip()
+    return process_templates(original)

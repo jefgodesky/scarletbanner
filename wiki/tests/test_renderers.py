@@ -91,3 +91,13 @@ class TestRenderTemplates:
         WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body=body)
         before = '<template name="Test Template"></template>'
         assert render_templates(before) == "Hello, world!"
+
+    def test_nested_template(self):
+        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Inner Template", body="Hello, world!")
+        WikiPageFactory(
+            page_type=PageType.TEMPLATE.value,
+            title="Outer Template",
+            body='<template name="Inner Template"></template>',
+        )
+        before = '<template name="Outer Template"></template>'
+        assert render_templates(before) == "Hello, world!"
