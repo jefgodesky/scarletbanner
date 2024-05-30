@@ -260,16 +260,7 @@ class WikiPage(models.Model):
 
 
 class Revision(models.Model):
-    PAGE_TYPES = [(PageType.PAGE.value, "Page"), (PageType.CHARACTER.value, "Character")]
-    SECURITY_CHOICES = [
-        (PermissionLevel.PUBLIC.value, "Public"),
-        (PermissionLevel.MEMBERS_ONLY.value, "Members only"),
-        (PermissionLevel.EDITORS_ONLY.value, "Editors only"),
-        (PermissionLevel.OWNER_ONLY.value, "Owner only"),
-        (PermissionLevel.ADMIN_ONLY.value, "Admins only"),
-    ]
-
-    page_type = models.CharField(max_length=20, choices=PAGE_TYPES, default=PageType.PAGE.value)
+    page_type = models.CharField(max_length=20, choices=PageType.get_choices(), default=PageType.PAGE.value)
     title = models.CharField(max_length=255)
     slug = models.CharField(max_length=255)
     body = models.TextField(null=True, blank=True)
@@ -279,8 +270,10 @@ class Revision(models.Model):
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, related_name="owned_pages", on_delete=models.CASCADE, null=True, blank=True
     )
-    read = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
-    write = models.CharField(max_length=20, choices=SECURITY_CHOICES, default=PermissionLevel.PUBLIC.value)
+    read = models.CharField(max_length=20, choices=PermissionLevel.get_choices(), default=PermissionLevel.PUBLIC.value)
+    write = models.CharField(
+        max_length=20, choices=PermissionLevel.get_choices(), default=PermissionLevel.PUBLIC.value
+    )
     timestamp = models.DateTimeField(auto_now=True)
     parent = models.ForeignKey(WikiPage, on_delete=models.SET_NULL, null=True, blank=True)
     is_latest = models.BooleanField(default=True)
