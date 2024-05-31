@@ -16,3 +16,13 @@ class TestPage:
         assert page.slug == slugify(page.title)
         assert page.read == PermissionLevel.PUBLIC.value
         assert page.write == PermissionLevel.PUBLIC.value
+
+    def test_create_default_message(self):
+        page = Page.create("Test Page", "This is a test.")
+        history = page.history.first()
+        assert history.history_change_reason == "Initial text"
+
+    def test_create_message(self):
+        page = Page.create("Test Page", "This is a test.", "Test")
+        history = page.history.first()
+        assert history.history_change_reason == "Test"

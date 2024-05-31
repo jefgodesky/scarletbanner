@@ -1,5 +1,7 @@
 from django.db import models
 from simple_history.models import HistoricalRecords
+from simple_history.utils import update_change_reason
+from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
 
@@ -16,6 +18,14 @@ class AbstractPage(models.Model):
 
     class Meta:
         abstract = True
+
+    @classmethod
+    def create(cls, title: str, body: str, message: str = "Initial text", slug: str = None, read: PermissionLevel = PermissionLevel.PUBLIC, write: PermissionLevel = PermissionLevel.PUBLIC):
+        slug = slugify(title) if slug is None else slug
+        page = cls(title=title, body=body, slug=slug, read=read.value, write=write.value)
+        page.save()
+        update_change_reason(page, message)
+        return page
 
 
 class Page(AbstractPage):
