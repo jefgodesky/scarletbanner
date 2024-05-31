@@ -7,8 +7,8 @@ from bs4 import BeautifulSoup
 from django.db.models import Q
 from django.urls import reverse
 
-from wiki.enums import PageType
-from wiki.models import Revision, Secret, WikiPage
+from scarletbanner.wiki.enums import PageType
+from scarletbanner.wiki.models import Revision, Secret, WikiPage
 
 
 def render_secrets(original: str, character: WikiPage, editable: bool = False) -> str:

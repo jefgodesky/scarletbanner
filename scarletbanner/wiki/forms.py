@@ -1,8 +1,8 @@
 from django import forms
 
 from scarletbanner.users.models import User
-from wiki.enums import PageType, PermissionLevel
-from wiki.models import WikiPage
+from scarletbanner.wiki.enums import PageType, PermissionLevel
+from scarletbanner.wiki.models import WikiPage
 
 
 class WikiPageForm(forms.ModelForm):

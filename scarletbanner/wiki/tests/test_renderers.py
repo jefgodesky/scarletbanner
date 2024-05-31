@@ -1,7 +1,7 @@
 import pytest
 
-from wiki.enums import PageType
-from wiki.renderers import (
+from scarletbanner.wiki.enums import PageType
+from scarletbanner.wiki.renderers import (
     reconcile_secrets,
     render,
     render_links,
@@ -10,7 +10,7 @@ from wiki.renderers import (
     render_template_pages,
     render_templates,
 )
-from wiki.tests.factories import SecretFactory, WikiPageFactory
+from scarletbanner.wiki.tests.factories import SecretFactory, WikiPageFactory
 
 
 @pytest.mark.django_db

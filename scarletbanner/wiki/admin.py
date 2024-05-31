@@ -2,9 +2,9 @@ from django.contrib import admin
 from django.shortcuts import render
 from django.urls import reverse
 
-from wiki.enums import PageType, PermissionLevel
-from wiki.forms import WikiPageForm
-from wiki.models import Revision, Secret, SecretCategory, WikiPage
+from scarletbanner.wiki.enums import PageType, PermissionLevel
+from scarletbanner.wiki.forms import WikiPageForm
+from scarletbanner.wiki.models import Revision, Secret, SecretCategory, WikiPage
 
 
 class RevisionInline(admin.TabularInline):

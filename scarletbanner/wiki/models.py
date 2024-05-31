@@ -14,7 +14,7 @@ from slugify import slugify
 from tree_queries.models import TreeNode
 
 from scarletbanner.users.models import User
-from wiki.enums import PageType, PermissionLevel
+from scarletbanner.wiki.enums import PageType, PermissionLevel
 
 
 def get_unique_slug_element(slug: str) -> str:

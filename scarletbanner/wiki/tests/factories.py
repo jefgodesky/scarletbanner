@@ -4,8 +4,8 @@ from faker import Faker
 from slugify import slugify
 
 from scarletbanner.users.tests.factories import UserFactory
-from wiki.enums import PageType, PermissionLevel
-from wiki.models import Revision, Secret, SecretCategory, WikiPage
+from scarletbanner.wiki.enums import PageType, PermissionLevel
+from scarletbanner.wiki.models import Revision, Secret, SecretCategory, WikiPage
 
 fake = Faker()
 

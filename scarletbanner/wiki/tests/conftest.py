@@ -1,7 +1,7 @@
 import pytest
 
-from wiki.enums import PageType, PermissionLevel
-from wiki.tests.factories import CharacterFactory, SecretCategoryFactory, SecretFactory, WikiPageFactory
+from scarletbanner.wiki.enums import PageType, PermissionLevel
+from scarletbanner.wiki.tests.factories import CharacterFactory, SecretCategoryFactory, SecretFactory, WikiPageFactory
 
 
 @pytest.fixture

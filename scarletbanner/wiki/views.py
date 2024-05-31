@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404, render
 
-from wiki.models import WikiPage
+from scarletbanner.wiki.models import WikiPage
 
 
 def create(request):

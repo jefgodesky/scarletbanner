@@ -2,9 +2,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.db.utils import IntegrityError
 
-from wiki.enums import PageType, PermissionLevel
-from wiki.models import Revision, Secret, SecretCategory, SecretEvaluator, WikiPage
-from wiki.tests.factories import CharacterFactory, SecretFactory, WikiPageFactory
+from scarletbanner.wiki.enums import PageType, PermissionLevel
+from scarletbanner.wiki.models import Revision, Secret, SecretCategory, SecretEvaluator, WikiPage
+from scarletbanner.wiki.tests.factories import CharacterFactory, SecretFactory, WikiPageFactory
 
 User = get_user_model()
 
