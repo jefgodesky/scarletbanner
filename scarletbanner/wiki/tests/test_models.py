@@ -26,3 +26,13 @@ class TestPage:
         page = Page.create("Test Page", "This is a test.", "Test")
         history = page.history.first()
         assert history.history_change_reason == "Test"
+
+    def test_update(self, page):
+        updated_title = "Updated Page"
+        updated_body = "This is a test."
+        message = "Test"
+        page.update(updated_title, updated_body, message)
+        history = page.history.first()
+        assert page.title == updated_title
+        assert page.body == updated_body
+        assert history.history_change_reason == message

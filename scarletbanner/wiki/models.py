@@ -19,6 +19,15 @@ class AbstractPage(models.Model):
     class Meta:
         abstract = True
 
+    def update(self, title: str, body: str, message: str, slug: str = None, read: PermissionLevel = None, write: PermissionLevel = None):
+        self.title = title
+        self.body = body
+        self.slug = slugify(title) if slug is None else slug
+        self.read = self.read if read is None else read
+        self.write = self.write if write is None else write
+        self.save()
+        update_change_reason(self, message)
+
     @classmethod
     def create(cls, title: str, body: str, message: str = "Initial text", slug: str = None, read: PermissionLevel = PermissionLevel.PUBLIC, write: PermissionLevel = PermissionLevel.PUBLIC):
         slug = slugify(title) if slug is None else slug
