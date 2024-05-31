@@ -3,6 +3,7 @@ from urllib.parse import quote_plus, urlencode
 
 import bleach
 import markdown
+from bleach.css_sanitizer import CSSSanitizer
 from bs4 import BeautifulSoup
 from django.db.models import Q
 from django.urls import reverse
@@ -169,6 +170,7 @@ def render_markdown(original: str) -> str:
     ]
     allowed_tags = set(bleach.sanitizer.ALLOWED_TAGS.union(allowed_content_tags, {"img"}))
     allowed_attributes = bleach.sanitizer.ALLOWED_ATTRIBUTES.copy()
+    allowed_css = CSSSanitizer(bleach.css_sanitizer.ALLOWED_CSS_PROPERTIES)
     allowed_attributes.update(
         {
             "*": ["class", "style", "id"],
@@ -178,7 +180,9 @@ def render_markdown(original: str) -> str:
     )
 
     html = markdown.markdown(original, extensions=["extra", "tables", "fenced_code", "sane_lists"])
-    clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attributes, strip=True)
+    clean_html = bleach.clean(
+        html, tags=allowed_tags, attributes=allowed_attributes, css_sanitizer=allowed_css, strip=True
+    )
     soup = BeautifulSoup(clean_html, "html.parser")
 
     for tag in soup.find_all():
