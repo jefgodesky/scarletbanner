@@ -1,4 +1,5 @@
 import pytest
+
 from scarletbanner.wiki.tests.factories import PageFactory
 
 
