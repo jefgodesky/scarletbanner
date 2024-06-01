@@ -44,6 +44,14 @@ class TestPage:
         assert page.body == updated_body
         assert page.history.first().history_change_reason == message
 
+    def test_patch(self, user, page):
+        updated_title = "Updated Page"
+        message = "Test patching"
+        body_before = page.body
+        page.update(editor=user, title=updated_title, message=message)
+        assert page.title == updated_title
+        assert page.body == body_before
+
     def test_update_cannot_lock_self_out_write(self, user, page):
         before = page.history.count()
         updated_title = "Updated Page"

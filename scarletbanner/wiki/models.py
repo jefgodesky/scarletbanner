@@ -57,9 +57,9 @@ class Page(PolymorphicModel):
     def update(
         self,
         editor: User,
-        title: str,
-        body: str,
         message: str,
+        title: str = None,
+        body: str = None,
         slug: str = None,
         read: PermissionLevel = None,
         write: PermissionLevel = None,
@@ -71,10 +71,10 @@ class Page(PolymorphicModel):
         if not self.can_write(write, editor) or not will_read:
             return
 
-        self.title = title
-        self.body = body
+        self.title = self.title if title is None else title
+        self.body = self.body if body is None else body
         self.slug = slugify(title) if slug is None else slug
-        self.read = self.read if read is None else read.value
+        self.read = read.value
         self.write = write.value
         self.stamp_revision(editor, message)
 
