@@ -67,30 +67,6 @@ class TestPage:
         assert page.parent == child_page.parent
         assert page.slug.startswith(child_page.parent.slug + "/")
 
-    def test_destroy(self, page):
-        pk = page.pk
-        page.destroy(page.editors[0])
-        with pytest.raises(Page.DoesNotExist):
-            Page.objects.get(pk=pk)
-
-    def test_destroy_grandparent(self, grandchild_page):
-        grandchild_page.parent.parent.destroy(grandchild_page.editors[0])
-        grandchild_page.refresh_from_db()
-        assert grandchild_page.parent.parent is None
-        assert grandchild_page.parent.slug == "child"
-        assert grandchild_page.parent.children.first() == grandchild_page
-        assert isinstance(grandchild_page.parent, Page)
-        assert grandchild_page.slug == "child/grandchild"
-
-    def test_destroy_middle(self, grandchild_page):
-        grandparent = grandchild_page.parent.parent
-        grandchild_page.parent.destroy(grandchild_page.editors[0])
-        grandchild_page.refresh_from_db()
-        assert grandparent.slug == "parent"
-        assert grandparent.children.first() == grandchild_page
-        assert grandchild_page.parent == grandparent
-        assert grandchild_page.slug == "parent/grandchild"
-
     def test_update_cannot_lock_self_out_write(self, user, page):
         before = page.history.count()
         updated_title = "Updated Page"
@@ -124,6 +100,30 @@ class TestPage:
         assert page.title == updated_title
         assert other in page.editors
         assert page.can_read(other)
+
+    def test_destroy(self, page):
+        pk = page.pk
+        page.destroy(page.editors[0])
+        with pytest.raises(Page.DoesNotExist):
+            Page.objects.get(pk=pk)
+
+    def test_destroy_grandparent(self, grandchild_page):
+        grandchild_page.parent.parent.destroy(grandchild_page.editors[0])
+        grandchild_page.refresh_from_db()
+        assert grandchild_page.parent.parent is None
+        assert grandchild_page.parent.slug == "child"
+        assert grandchild_page.parent.children.first() == grandchild_page
+        assert isinstance(grandchild_page.parent, Page)
+        assert grandchild_page.slug == "child/grandchild"
+
+    def test_destroy_middle(self, grandchild_page):
+        grandparent = grandchild_page.parent.parent
+        grandchild_page.parent.destroy(grandchild_page.editors[0])
+        grandchild_page.refresh_from_db()
+        assert grandparent.slug == "parent"
+        assert grandparent.children.first() == grandchild_page
+        assert grandchild_page.parent == grandparent
+        assert grandchild_page.slug == "parent/grandchild"
 
     def test_editors(self, user, other, page):
         page.update(other, "Updated Page", "This is a test.", "Test")
