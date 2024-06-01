@@ -23,6 +23,11 @@ class Page(PolymorphicModel):
         ids = self.history.exclude(history_user=None).values_list("history_user", flat=True).distinct()
         return User.objects.filter(id__in=ids)
 
+    def save(self, *args, **kwargs):
+        if Page.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            raise ValueError("Slug must be unique.")
+        super().save(*args, **kwargs)
+
     def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
         if user is not None and user.is_staff:
             return True
