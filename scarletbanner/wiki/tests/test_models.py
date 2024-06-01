@@ -52,6 +52,12 @@ class TestPage:
         assert page.title == updated_title
         assert page.body == body_before
 
+    def test_delete(self, page):
+        pk = page.pk
+        page.delete()
+        with pytest.raises(Page.DoesNotExist):
+            Page.objects.get(pk=pk)
+
     def test_update_cannot_lock_self_out_write(self, user, page):
         before = page.history.count()
         updated_title = "Updated Page"
