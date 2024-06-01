@@ -62,6 +62,11 @@ class TestPage:
         assert page.title == updated_title
         assert page.body == body_before
 
+    def test_update_parent(self, page, child_page):
+        page.update(parent=child_page.parent, editor=page.editors[0], message="Test")
+        assert page.parent == child_page.parent
+        assert page.slug.startswith(child_page.parent.slug + "/")
+
     def test_destroy(self, page):
         pk = page.pk
         page.destroy(page.editors[0])
