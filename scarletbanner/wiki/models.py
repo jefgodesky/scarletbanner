@@ -13,10 +13,8 @@ class AbstractPage(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=1024, unique=True)
     body = models.TextField()
-    read = models.CharField(max_length=20, choices=PermissionLevel.get_choices(), default=PermissionLevel.PUBLIC.value)
-    write = models.CharField(
-        max_length=20, choices=PermissionLevel.get_choices(), default=PermissionLevel.PUBLIC.value
-    )
+    read = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
+    write = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
     history = HistoricalRecords(inherit=True)
 
     class Meta:
@@ -31,7 +29,7 @@ class AbstractPage(models.Model):
         if user is not None and user.is_staff:
             return True
 
-        match permission:
+        match PermissionLevel(permission):
             case PermissionLevel.PUBLIC:
                 return True
             case PermissionLevel.MEMBERS_ONLY:
@@ -48,7 +46,10 @@ class AbstractPage(models.Model):
         can_read = self.can_read(user)
         can_write_before = self.evaluate_permission(PermissionLevel(self.write), user)
         can_write_after = self.evaluate_permission(to, user)
-        return can_read and can_write_before and can_write_after
+        editor_exception = user is not None and to == PermissionLevel.EDITORS_ONLY
+        no_write_lockout = can_write_after or editor_exception
+        no_read_lockout = to.value <= self.read or editor_exception
+        return can_read and can_write_before and no_write_lockout and no_read_lockout
 
     def update(
         self,
@@ -60,11 +61,18 @@ class AbstractPage(models.Model):
         read: PermissionLevel = None,
         write: PermissionLevel = None,
     ):
+        read = PermissionLevel(self.write) if read is None else read
+        write = PermissionLevel(self.write) if write is None else write
+        will_read = self.evaluate_permission(read, editor) or read == PermissionLevel.EDITORS_ONLY
+
+        if not self.can_write(write, editor) or not will_read:
+            return
+
         self.title = title
         self.body = body
         self.slug = slugify(title) if slug is None else slug
-        self.read = self.read if read is None else read
-        self.write = self.write if write is None else write
+        self.read = self.read if read is None else read.value
+        self.write = write.value
         self.stamp_revision(editor, message)
 
     def stamp_revision(self, editor: User, message: str):

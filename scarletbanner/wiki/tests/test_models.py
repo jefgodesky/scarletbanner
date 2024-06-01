@@ -35,10 +35,44 @@ class TestPage:
         updated_title = "Updated Page"
         updated_body = "This is a test."
         message = "Test"
-        page.update(user, updated_title, updated_body, message)
+        page.update(editor=user, title=updated_title, body=updated_body, message=message)
         assert page.title == updated_title
         assert page.body == updated_body
         assert page.history.first().history_change_reason == message
+
+    def test_update_cannot_lock_self_out_write(self, user, page):
+        before = page.history.count()
+        updated_title = "Updated Page"
+        page.update(
+            editor=user, title=updated_title, body="Test", message="Lock out", write=PermissionLevel.ADMIN_ONLY
+        )
+        assert page.title != updated_title
+        assert page.history.count() == before
+
+    def test_update_can_make_editors_only_write(self, user, other, page):
+        updated_title = "Updated Page"
+        page.update(
+            editor=other, title=updated_title, body="Test", message="Editors only", write=PermissionLevel.EDITORS_ONLY
+        )
+        assert page.title == updated_title
+        assert other in page.editors
+        assert page.can_read(other)
+
+    def test_update_cannot_lock_self_out_read(self, user, page):
+        before = page.history.count()
+        updated_title = "Updated Page"
+        page.update(editor=user, title=updated_title, body="Test", message="Lock out", read=PermissionLevel.ADMIN_ONLY)
+        assert page.title != updated_title
+        assert page.history.count() == before
+
+    def test_update_can_make_editors_only_read(self, user, other, page):
+        updated_title = "Updated Page"
+        page.update(
+            editor=other, title=updated_title, body="Test", message="Editors only", read=PermissionLevel.EDITORS_ONLY
+        )
+        assert page.title == updated_title
+        assert other in page.editors
+        assert page.can_read(other)
 
     def test_editors(self, user, other, page):
         page.update(other, "Updated Page", "This is a test.", "Test")
@@ -155,4 +189,5 @@ class TestPage:
             if reader_fixture == "user"
             else request.getfixturevalue(reader_fixture)
         )
+        page.read = after.value
         assert page.can_write(after, reader) == expected
