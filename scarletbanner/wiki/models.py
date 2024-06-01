@@ -14,6 +14,7 @@ class Page(PolymorphicModel):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=1024, unique=True)
     body = models.TextField()
+    parent = models.ForeignKey("Page", related_name="children", on_delete=models.SET_NULL, null=True, blank=True)
     read = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
     write = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
     history = HistoricalRecords(inherit=True)
@@ -23,7 +24,20 @@ class Page(PolymorphicModel):
         ids = self.history.exclude(history_user=None).values_list("history_user", flat=True).distinct()
         return User.objects.filter(id__in=ids)
 
+    @property
+    def unique_slug_element(self) -> str:
+        parts = [part for part in self.slug.split("/")]
+        return parts[-1]
+
+    def set_slug(self, slug: str or None = None):
+        slug = slugify(self.title) if slug is None else slugify(self.unique_slug_element)
+        if self.parent is not None:
+            slug = f"{self.parent.slug}/{slug}"
+
+        self.slug = slug
+
     def save(self, *args, **kwargs):
+        self.set_slug(self.slug)
         if Page.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
             raise ValueError("Slug must be unique.")
         super().save(*args, **kwargs)
@@ -93,11 +107,12 @@ class Page(PolymorphicModel):
         body: str,
         message: str = "Initial text",
         slug: str = None,
+        parent: "Page" = None,
         read: PermissionLevel = PermissionLevel.PUBLIC,
         write: PermissionLevel = PermissionLevel.PUBLIC,
     ):
         slug = slugify(title) if slug is None else slug
-        page = cls(title=title, body=body, slug=slug, read=read.value, write=write.value)
+        page = cls(title=title, body=body, slug=slug, parent=parent, read=read.value, write=write.value)
         page.save()
         page.stamp_revision(editor, message)
         return page

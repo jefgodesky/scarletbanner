@@ -31,9 +31,19 @@ class TestPage:
         history = page.history.first()
         assert history.history_change_reason == "Test"
 
+    def test_create_child(self, child_page):
+        assert isinstance(child_page, Page)
+        assert isinstance(child_page.parent, Page)
+        assert child_page.slug == "parent/child"
+
     def test_unique_slug(self, page):
         with pytest.raises(ValueError):
             Page.create(page.editors[0], "Second Page", "This is a test.", "Test", page.slug)
+
+    def test_unique_slug_element(self, grandchild_page):
+        assert grandchild_page.unique_slug_element == "grandchild"
+        assert grandchild_page.parent.unique_slug_element == "child"
+        assert grandchild_page.parent.parent.unique_slug_element == "parent"
 
     def test_update(self, user, page):
         updated_title = "Updated Page"
