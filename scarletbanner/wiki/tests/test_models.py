@@ -4,6 +4,7 @@ from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
 from scarletbanner.wiki.models import Page
+from scarletbanner.wiki.tests.factories import make_page
 from scarletbanner.wiki.tests.utils import isstring
 
 User = get_user_model()
@@ -35,12 +36,37 @@ class TestPage:
         updated_body = "This is a test."
         message = "Test"
         page.update(user, updated_title, updated_body, message)
-        history = page.history.first()
         assert page.title == updated_title
         assert page.body == updated_body
-        assert history.history_change_reason == message
+        assert page.history.first().history_change_reason == message
 
-    def test_editors(self, user, page):
-        page.update(user, "Updated Page", "This is a test.", "Test")
+    def test_editors(self, user, other, page):
+        page.update(other, "Updated Page", "This is a test.", "Test")
         assert page.editors.count() == 2
         assert all(isinstance(editor, User) for editor in page.editors)
+
+    @pytest.mark.parametrize(
+        "permission, reader_fixture, expected",
+        [
+            (PermissionLevel.PUBLIC, None, True),
+            (PermissionLevel.PUBLIC, "other", True),
+            (PermissionLevel.PUBLIC, "user", True),
+            (PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, "other", True),
+            (PermissionLevel.MEMBERS_ONLY, "user", True),
+            (PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.EDITORS_ONLY, "user", True),
+            (PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.ADMIN_ONLY, "admin", True),
+        ],
+    )
+    def test_can_read(self, request, permission, reader_fixture, expected, user):
+        page = make_page(user=user, read=permission)
+        reader = None if reader_fixture is None else user if reader_fixture == "user" else request.getfixturevalue(reader_fixture)
+        assert page.can_read(reader) == expected

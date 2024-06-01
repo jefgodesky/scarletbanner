@@ -27,6 +27,23 @@ class AbstractPage(models.Model):
         ids = self.history.exclude(history_user=None).values_list("history_user", flat=True).distinct()
         return User.objects.filter(id__in=ids)
 
+    def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
+        if user is not None and user.is_staff:
+            return True
+
+        match permission:
+            case PermissionLevel.PUBLIC:
+                return True
+            case PermissionLevel.MEMBERS_ONLY:
+                return user is not None
+            case PermissionLevel.EDITORS_ONLY:
+                return user in self.editors
+            case _:
+                return False
+
+    def can_read(self, user: User = None) -> bool:
+        return self.evaluate_permission(PermissionLevel(self.read), user)
+
     def update(
         self,
         editor: User,

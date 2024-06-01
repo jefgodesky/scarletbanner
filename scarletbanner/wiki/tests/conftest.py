@@ -1,8 +1,8 @@
 import pytest
 
-from scarletbanner.wiki.tests.factories import PageFactory
+from scarletbanner.wiki.tests.factories import make_page
 
 
 @pytest.fixture
-def page():
-    return PageFactory()
+def page(user):
+    return make_page(user=user)
