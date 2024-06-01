@@ -75,6 +75,7 @@ class Page(PolymorphicModel):
         title: str = None,
         body: str = None,
         slug: str = None,
+        parent: "Page" = None,
         read: PermissionLevel = None,
         write: PermissionLevel = None,
     ):
@@ -87,12 +88,36 @@ class Page(PolymorphicModel):
 
         self.title = self.title if title is None else title
         self.body = self.body if body is None else body
-        self.slug = slugify(title) if slug is None else slug
+        self.slug = self.slug if slug is None else slug
+        self.parent = self.parent if parent is None else parent
         self.read = read.value
         self.write = write.value
         self.stamp_revision(editor, message)
 
+    def reparent(self, editor: User, new_parent: "Page" or None = None) -> None:
+        message = f"Reparenting to {'root' if new_parent is None else new_parent.slug}"
+
+        self.parent = None
+        self.update(
+            editor=editor,
+            message=message,
+            parent=new_parent,
+        )
+
+        for child in self.children.all():
+            child.reparent(editor, new_parent=self)
+
+    def destroy(self, editor: User) -> None:
+        children = list(self.children.all())
+        new_parent = self.parent
+
+        super().delete()
+
+        for child in children:
+            child.reparent(editor, new_parent=new_parent)
+
     def stamp_revision(self, editor: User, message: str):
+        print(f"121: {self.parent}")
         self.save()
         latest = self.history.first()
         latest.history_user = editor
