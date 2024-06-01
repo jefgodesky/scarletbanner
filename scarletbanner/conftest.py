@@ -15,11 +15,6 @@ def user(db) -> User:
 
 
 @pytest.fixture
-def owner(db) -> User:
-    return UserFactory()
-
-
-@pytest.fixture
 def other(db) -> User:
     return UserFactory()
 

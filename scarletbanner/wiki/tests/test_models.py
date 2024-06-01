@@ -68,5 +68,91 @@ class TestPage:
     )
     def test_can_read(self, request, permission, reader_fixture, expected, user):
         page = make_page(user=user, read=permission)
-        reader = None if reader_fixture is None else user if reader_fixture == "user" else request.getfixturevalue(reader_fixture)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else request.getfixturevalue(reader_fixture)
+        )
         assert page.can_read(reader) == expected
+
+    @pytest.mark.parametrize(
+        "before, after, reader_fixture, expected",
+        [
+            (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, None, True),
+            (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, None, False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, None, False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, None, False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "other", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "other", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "other", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "other", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "other", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "other", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "other", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "other", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "user", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "user", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "user", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "user", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "user", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "user", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "user", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "user", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "user", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "user", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "user", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "user", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
+        ],
+    )
+    def test_can_write(self, request, before, after, reader_fixture, expected, user):
+        page = make_page(user=user, write=before)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else request.getfixturevalue(reader_fixture)
+        )
+        assert page.can_write(after, reader) == expected

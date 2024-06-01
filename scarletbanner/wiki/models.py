@@ -44,6 +44,12 @@ class AbstractPage(models.Model):
     def can_read(self, user: User = None) -> bool:
         return self.evaluate_permission(PermissionLevel(self.read), user)
 
+    def can_write(self, to: PermissionLevel, user: User = None) -> bool:
+        can_read = self.can_read(user)
+        can_write_before = self.evaluate_permission(PermissionLevel(self.write), user)
+        can_write_after = self.evaluate_permission(to, user)
+        return can_read and can_write_before and can_write_after
+
     def update(
         self,
         editor: User,
