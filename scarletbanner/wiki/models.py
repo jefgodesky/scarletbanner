@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+from polymorphic.models import PolymorphicModel
 from simple_history.models import HistoricalRecords
 from simple_history.utils import update_change_reason
 from slugify import slugify
@@ -9,16 +10,13 @@ from scarletbanner.wiki.enums import PermissionLevel
 User = get_user_model()
 
 
-class AbstractPage(models.Model):
+class Page(PolymorphicModel):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=1024, unique=True)
     body = models.TextField()
     read = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
     write = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
     history = HistoricalRecords(inherit=True)
-
-    class Meta:
-        abstract = True
 
     @property
     def editors(self):
@@ -98,7 +96,3 @@ class AbstractPage(models.Model):
         page.save()
         page.stamp_revision(editor, message)
         return page
-
-
-class Page(AbstractPage):
-    pass
