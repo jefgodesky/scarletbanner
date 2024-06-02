@@ -143,7 +143,7 @@ class Page(PolymorphicModel):
 
 
 class OwnedPage(Page):
-    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    owner = models.ForeignKey(User, related_name="pages", on_delete=models.SET_NULL, null=True, blank=True)
 
     def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
         is_owner = self.owner == user
