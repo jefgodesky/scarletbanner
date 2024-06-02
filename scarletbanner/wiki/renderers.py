@@ -35,3 +35,27 @@ def render_secrets(original: str, character: Character, editable: bool = False) 
 
     process_secrets(soup)
     return re.sub(r" {2,}", " ", str(soup).strip())
+
+
+def reconcile_secrets(original: str, edited: str) -> str:
+    original_soup = BeautifulSoup(original, "html.parser")
+    edited_soup = BeautifulSoup(edited, "html.parser")
+
+    secrets = {tag.get("sid"): tag for tag in original_soup.find_all("secret", recursive=True)}
+
+    def process_secrets(parent):
+        for tag in parent.find_all("secret", recursive=False):
+            sid = tag.get("sid")
+            if sid and not tag.has_attr("show"):
+                original_secret = secrets.get(sid)
+                if original_secret:
+                    tag.replace_with(original_secret)
+            process_secrets(tag)
+
+    process_secrets(edited_soup)
+
+    for tag in edited_soup.find_all("secret"):
+        if tag.has_attr("sid"):
+            del tag["sid"]
+
+    return str(edited_soup).strip()
