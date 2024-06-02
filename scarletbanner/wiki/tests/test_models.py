@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, SecretEvaluator
+from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, SecretEvaluator, Template
 from scarletbanner.wiki.tests.factories import SecretFactory, make_character, make_owned_page, make_page
 from scarletbanner.wiki.tests.utils import isstring
 
@@ -346,6 +346,12 @@ class TestCharacter:
     def test_create(self, character):
         assert isinstance(character, Character)
         assert isinstance(character.player, User)
+
+
+@pytest.mark.django_db
+class TestTemplate:
+    def test_create(self, template):
+        assert isinstance(template, Template)
 
 
 @pytest.mark.django_db

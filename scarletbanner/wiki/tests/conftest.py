@@ -6,6 +6,7 @@ from scarletbanner.wiki.tests.factories import (
     make_character,
     make_owned_page,
     make_page,
+    make_template,
 )
 
 
@@ -33,6 +34,11 @@ def owned_page(user, owner):
 @pytest.fixture
 def character(user):
     return make_character(user=user)
+
+
+@pytest.fixture
+def template(user):
+    return make_template(user=user)
 
 
 @pytest.fixture

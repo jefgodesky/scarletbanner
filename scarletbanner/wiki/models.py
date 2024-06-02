@@ -190,6 +190,10 @@ class Character(OwnedPage):
         return self.owner
 
 
+class Template(Page):
+    pass
+
+
 class SecretCategory(TreeNode):
     name = models.CharField(max_length=255)
 

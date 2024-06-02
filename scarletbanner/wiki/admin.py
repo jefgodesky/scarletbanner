@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.shortcuts import render
 from django.urls import reverse
 
-from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory
+from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, Template
 
 
 @admin.register(Page)
@@ -59,6 +59,25 @@ class CharacterAdmin(admin.ModelAdmin):
                 "fields": ("owner",),
             },
         ),
+        (
+            "Organization",
+            {
+                "fields": ("parent", "slug"),
+            },
+        ),
+        (
+            "Permissions",
+            {
+                "fields": ("read", "write"),
+            },
+        ),
+    )
+
+
+@admin.register(Template)
+class TemplateAdmin(admin.ModelAdmin):
+    fieldsets = (
+        (None, {"fields": ("title", "body")}),
         (
             "Organization",
             {

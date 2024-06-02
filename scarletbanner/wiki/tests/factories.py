@@ -6,7 +6,7 @@ from slugify import slugify
 
 from scarletbanner.users.tests.factories import UserFactory
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory
+from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, Template
 
 fake = Faker()
 User = get_user_model()
@@ -39,6 +39,10 @@ def make_owned_page(**kwargs) -> OwnedPage:
 
 def make_character(**kwargs) -> Character:
     return make_page_instance(Character, **kwargs)
+
+
+def make_template(**kwargs) -> Template:
+    return make_page_instance(Template, **kwargs)
 
 
 class SecretCategoryFactory(DjangoModelFactory):
