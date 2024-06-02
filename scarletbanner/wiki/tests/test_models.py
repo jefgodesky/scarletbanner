@@ -3,8 +3,8 @@ from django.contrib.auth import get_user_model
 from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory
-from scarletbanner.wiki.tests.factories import make_character, make_owned_page, make_page
+from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, SecretEvaluator
+from scarletbanner.wiki.tests.factories import SecretFactory, make_character, make_owned_page, make_page
 from scarletbanner.wiki.tests.utils import isstring
 
 User = get_user_model()
@@ -379,3 +379,38 @@ class TestSecret:
         fool = make_character()
         assert secret.knows(secret.known_to.first())
         assert not secret.knows(fool)
+
+    def test_evaluate(self):
+        expression, alice, bob, charlie = TestSecretEvaluator.setup()
+        assert not Secret.evaluate(expression, alice)
+        assert Secret.evaluate(expression, bob)
+        assert Secret.evaluate(expression, charlie)
+
+
+@pytest.mark.django_db
+class TestSecretEvaluator:
+    def test_evaluate(self):
+        expression, alice, bob, charlie = TestSecretEvaluator.setup()
+        assert not SecretEvaluator(alice).eval(expression)
+        assert SecretEvaluator(bob).eval(expression)
+        assert SecretEvaluator(charlie).eval(expression)
+
+    @staticmethod
+    def setup():
+        alice = make_character()
+        bob = make_character()
+        charlie = make_character()
+
+        secrets = [
+            SecretFactory(),
+            SecretFactory(),
+            SecretFactory(),
+        ]
+
+        secrets[0].known_to.set([alice, bob])
+        secrets[1].known_to.set([bob])
+        secrets[2].known_to.set([charlie])
+
+        keys = [secret.key for secret in secrets]
+        expression = f"([{keys[0]}] and [{keys[1]}]) or [{keys[2]}]"
+        return expression, alice, bob, charlie

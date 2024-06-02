@@ -1,3 +1,7 @@
+import ast
+import re
+from typing import Any
+
 from django.contrib.auth import get_user_model
 from django.db import models
 from polymorphic.models import PolymorphicModel
@@ -205,3 +209,47 @@ class Secret(models.Model):
 
     def knows(self, character: Character) -> bool:
         return self.known_to.filter(pk=character.pk).exists()
+
+    @staticmethod
+    def evaluate(expression: str, character: Character, secrets: Any = None) -> bool:
+        secrets = Secret.objects.all() if secrets is None else secrets
+        return SecretEvaluator(character, secrets).eval(expression)
+
+
+class SecretEvaluator(ast.NodeVisitor):
+    def __init__(self, character: Character, secrets: Any = None):
+        secrets = Secret.objects.all() if secrets is None else secrets
+        self.character = character
+        self.secrets = {
+            SecretEvaluator.variablize(secret.key): (secret.key, secret.knows(character)) for secret in secrets
+        }
+
+    def eval(self, expression: str) -> bool:
+        for variable, (key, _) in self.secrets.items():
+            expression = expression.replace(f"[{key}]", variable)
+        tree = ast.parse(expression, mode="eval")
+        return self.visit(tree.body)
+
+    def visit_BoolOp(self, node):
+        fn = all if isinstance(node.op, ast.And) else any
+        return fn(self.visit(value) for value in node.values)
+
+    def visit_UnaryOp(self, node):
+        if isinstance(node.op, ast.Not):
+            return not self.visit(node.operand)
+
+    def visit_Name(self, node):
+        variable = node.id
+        if variable in self.secrets:
+            return self.secrets[variable][1]
+        raise ValueError(f"Unknown secret key: {self.secrets[variable][0]}")
+
+    def visit_Expr(self, node):
+        return self.visit(node.value)
+
+    def visit_Module(self, node):
+        return all(self.visit(body) for body in node.body)
+
+    @staticmethod
+    def variablize(key: str) -> str:
+        return re.sub(r"\W|^(?=\d)", "_", key)
