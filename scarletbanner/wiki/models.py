@@ -24,6 +24,9 @@ class Page(PolymorphicModel):
     write = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
     history = HistoricalRecords(inherit=True)
 
+    def __str__(self):
+        return self.title
+
     @property
     def editors(self):
         ids = self.history.exclude(history_user=None).values_list("history_user", flat=True).distinct()
