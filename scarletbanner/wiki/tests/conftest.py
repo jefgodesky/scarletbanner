@@ -1,6 +1,6 @@
 import pytest
 
-from scarletbanner.wiki.tests.factories import make_page
+from scarletbanner.wiki.tests.factories import make_owned_page, make_page
 
 
 @pytest.fixture
@@ -17,3 +17,8 @@ def child_page(user):
 @pytest.fixture
 def grandchild_page(child_page):
     return make_page(user=child_page.editors[0], title="Grandchild Page", slug="grandchild", parent=child_page)
+
+
+@pytest.fixture
+def owned_page(user, owner):
+    return make_owned_page(user=user, owner=owner)

@@ -3,8 +3,8 @@ from django.contrib.auth import get_user_model
 from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Page
-from scarletbanner.wiki.tests.factories import make_page
+from scarletbanner.wiki.models import OwnedPage, Page
+from scarletbanner.wiki.tests.factories import make_owned_page, make_page
 from scarletbanner.wiki.tests.utils import isstring
 
 User = get_user_model()
@@ -238,6 +238,103 @@ class TestPage:
             if reader_fixture is None
             else user
             if reader_fixture == "user"
+            else request.getfixturevalue(reader_fixture)
+        )
+        page.read = after.value
+        assert page.can_write(after, reader) == expected
+
+
+@pytest.mark.django_db
+class TestOwnedPage:
+    def test_create(self, owned_page):
+        assert isinstance(owned_page, OwnedPage)
+        assert isinstance(owned_page.owner, User)
+        assert isstring(owned_page.title)
+        assert isstring(owned_page.slug)
+        assert isstring(owned_page.body)
+
+    @pytest.mark.parametrize(
+        "permission, reader_fixture, expected",
+        [
+            (PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, "admin", True),
+        ],
+    )
+    def test_can_read(self, request, permission, reader_fixture, expected, user, owner):
+        page = make_owned_page(user=user, owner=owner, read=permission)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else page.owner
+            if reader_fixture == "owner"
+            else request.getfixturevalue(reader_fixture)
+        )
+        assert page.can_read(reader) == expected
+
+    @pytest.mark.parametrize(
+        "before, after, reader_fixture, expected",
+        [
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "owner", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "owner", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
+        ],
+    )
+    def test_can_write(self, request, before, after, reader_fixture, expected, user, owner):
+        page = make_owned_page(user=user, owner=owner, write=before)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else owner
+            if reader_fixture == "owner"
             else request.getfixturevalue(reader_fixture)
         )
         page.read = after.value

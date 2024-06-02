@@ -20,5 +20,10 @@ def other(db) -> User:
 
 
 @pytest.fixture
+def owner(db) -> User:
+    return UserFactory()
+
+
+@pytest.fixture
 def admin(db) -> User:
     return UserFactory(is_staff=True, is_superuser=True)

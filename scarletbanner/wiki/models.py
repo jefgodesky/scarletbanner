@@ -117,7 +117,6 @@ class Page(PolymorphicModel):
             child.reparent(editor, new_parent=new_parent)
 
     def stamp_revision(self, editor: User, message: str):
-        print(f"121: {self.parent}")
         self.save()
         latest = self.history.first()
         latest.history_user = editor
@@ -138,6 +137,40 @@ class Page(PolymorphicModel):
     ):
         slug = slugify(title) if slug is None else slug
         page = cls(title=title, body=body, slug=slug, parent=parent, read=read.value, write=write.value)
+        page.save()
+        page.stamp_revision(editor, message)
+        return page
+
+
+class OwnedPage(Page):
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
+        is_owner = self.owner == user
+        is_admin = user is not None and user.is_staff
+
+        if permission == PermissionLevel.OWNER_ONLY:
+            return is_owner or is_admin
+        elif permission == PermissionLevel.EDITORS_ONLY and is_owner:
+            return True
+        else:
+            return super().evaluate_permission(permission, user)
+
+    @classmethod
+    def create(
+        cls,
+        editor: User,
+        title: str,
+        body: str,
+        message: str = "Initial text",
+        slug: str = None,
+        parent: "Page" = None,
+        owner: User = None,
+        read: PermissionLevel = PermissionLevel.PUBLIC,
+        write: PermissionLevel = PermissionLevel.PUBLIC,
+    ):
+        slug = slugify(title) if slug is None else slug
+        page = cls(title=title, body=body, slug=slug, parent=parent, owner=owner, read=read.value, write=write.value)
         page.save()
         page.stamp_revision(editor, message)
         return page
