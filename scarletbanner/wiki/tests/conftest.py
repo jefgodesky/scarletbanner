@@ -1,6 +1,12 @@
 import pytest
 
-from scarletbanner.wiki.tests.factories import SecretCategoryFactory, make_character, make_owned_page, make_page
+from scarletbanner.wiki.tests.factories import (
+    SecretCategoryFactory,
+    SecretFactory,
+    make_character,
+    make_owned_page,
+    make_page,
+)
 
 
 @pytest.fixture
@@ -35,3 +41,8 @@ def secret_category():
     category = SecretCategoryFactory(parent=parent)
     SecretCategoryFactory(name="Child Category", parent=category)
     return category
+
+
+@pytest.fixture
+def secret(character, secret_category):
+    return SecretFactory(categories=[secret_category], known_to=[character])

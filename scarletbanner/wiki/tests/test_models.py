@@ -3,8 +3,8 @@ from django.contrib.auth import get_user_model
 from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, OwnedPage, Page, SecretCategory
-from scarletbanner.wiki.tests.factories import make_owned_page, make_page
+from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory
+from scarletbanner.wiki.tests.factories import make_character, make_owned_page, make_page
 from scarletbanner.wiki.tests.utils import isstring
 
 User = get_user_model()
@@ -359,3 +359,23 @@ class TestSecretCategory:
 
     def test_str(self, secret_category):
         assert str(secret_category) == secret_category.name
+
+
+@pytest.mark.django_db
+class TestSecret:
+    def test_create_read(self, secret):
+        assert isinstance(secret, Secret)
+        assert isstring(secret.key)
+        assert isstring(secret.description)
+        assert secret.categories.count() == 1
+        assert isstring(secret.categories.first().name)
+        assert secret.known_to.count() == 1
+        assert isinstance(secret.known_to.first(), Character)
+
+    def test_str(self, secret):
+        assert str(secret) == secret.key
+
+    def test_knows(self, secret, character):
+        fool = make_character()
+        assert secret.knows(secret.known_to.first())
+        assert not secret.knows(fool)

@@ -192,3 +192,16 @@ class SecretCategory(TreeNode):
 
     def __str__(self):
         return self.name
+
+
+class Secret(models.Model):
+    key = models.CharField(max_length=255, unique=True)
+    description = models.TextField(null=True, blank=True)
+    categories = models.ManyToManyField(SecretCategory, related_name="secrets")
+    known_to = models.ManyToManyField(Character, related_name="secrets_known", blank=True)
+
+    def __str__(self):
+        return self.key
+
+    def knows(self, character: Character) -> bool:
+        return self.known_to.filter(pk=character.pk).exists()

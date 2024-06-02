@@ -6,7 +6,7 @@ from slugify import slugify
 
 from scarletbanner.users.tests.factories import UserFactory
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, OwnedPage, Page, SecretCategory
+from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory
 
 fake = Faker()
 User = get_user_model()
@@ -51,3 +51,31 @@ class SecretCategoryFactory(DjangoModelFactory):
     @classmethod
     def _after_postgeneration(cls, instance, create, results=None):
         instance.save()
+
+
+class SecretFactory(DjangoModelFactory):
+    class Meta:
+        model = Secret
+
+    key = factory.Faker("sentence")
+    description = factory.Faker("text")
+
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        instance.save()
+
+    @factory.post_generation
+    def categories(self, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for category in extracted:
+                self.categories.add(category)
+
+    @factory.post_generation
+    def known_to(self, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for character in extracted:
+                self.known_to.add(character)
