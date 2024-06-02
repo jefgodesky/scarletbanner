@@ -370,7 +370,14 @@ class TestFile:
         assert file.attachment is not None
         assert file.attachment.name == "uploads/test.txt"
         assert file.attachment.size == 18
+        assert file.size == "18 B"
         assert file.content_type == "text/plain"
+
+    def test_human_readable(self):
+        assert File.get_human_readable_size(500) == "500 B"
+        assert File.get_human_readable_size(5000) == "4.9 kB"
+        assert File.get_human_readable_size(5000000) == "4.8 MB"
+        assert File.get_human_readable_size(5000000000) == "4.7 GB"
 
 
 @pytest.mark.django_db

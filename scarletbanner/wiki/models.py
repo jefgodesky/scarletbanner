@@ -200,6 +200,16 @@ class File(Page):
     attachment = models.FileField(upload_to="uploads/")
     content_type = models.CharField(max_length=255, blank=True)
 
+    @property
+    def size(self):
+        return File.get_human_readable_size(self.attachment.size)
+
+    def save(self, *args, **kwargs):
+        if self.attachment and not self.content_type:
+            content_type, _ = mimetypes.guess_type(self.attachment.name)
+            self.content_type = content_type or "application/octet-stream"
+        super().save(*args, **kwargs)
+
     @classmethod
     def create(
         cls,
@@ -221,11 +231,16 @@ class File(Page):
         page.stamp_revision(editor, message)
         return page
 
-    def save(self, *args, **kwargs):
-        if self.attachment and not self.content_type:
-            content_type, _ = mimetypes.guess_type(self.attachment.name)
-            self.content_type = content_type or "application/octet-stream"
-        super().save(*args, **kwargs)
+    @staticmethod
+    def get_human_readable_size(size: int) -> str:
+        if size > 1024**3:
+            return f"{size / 1024 ** 3:.1f} GB"
+        elif size > 1024**2:
+            return f"{size / 1024 ** 2:.1f} MB"
+        elif size > 1024:
+            return f"{size / 1024:.1f} kB"
+        else:
+            return f"{size} B"
 
 
 class SecretCategory(TreeNode):
