@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.shortcuts import render
 from django.urls import reverse
 
-from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, Template
+from scarletbanner.wiki.models import Character, File, OwnedPage, Page, Secret, SecretCategory, Template
 
 
 @admin.register(Page)
@@ -78,6 +78,25 @@ class CharacterAdmin(admin.ModelAdmin):
 class TemplateAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {"fields": ("title", "body")}),
+        (
+            "Organization",
+            {
+                "fields": ("parent", "slug"),
+            },
+        ),
+        (
+            "Permissions",
+            {
+                "fields": ("read", "write"),
+            },
+        ),
+    )
+
+
+@admin.register(File)
+class FileAdmin(admin.ModelAdmin):
+    fieldsets = (
+        (None, {"fields": ("title", "attachment", "body")}),
         (
             "Organization",
             {
