@@ -1,7 +1,7 @@
 import pytest
 
-from scarletbanner.wiki.renderers import reconcile_secrets, render_secrets
-from scarletbanner.wiki.tests.factories import SecretFactory
+from scarletbanner.wiki.renderers import reconcile_secrets, render_secrets, render_templates
+from scarletbanner.wiki.tests.factories import SecretFactory, make_template
 
 
 @pytest.mark.django_db
@@ -67,3 +67,49 @@ class TestReconcileSecrets:
             '<secret show="[S3]">last</secret>'
         )
         assert reconcile_secrets(original, edited) == expected
+
+
+@pytest.mark.django_db
+class TestRenderTemplates:
+    def test_no_templates(self):
+        before = "Hello, world!"
+        assert render_templates(before) == before
+
+    def test_simple_template(self):
+        make_template(title="Test Template", body="Hello, world!")
+        before = '<template name="Test Template"></template>'
+        assert render_templates(before) == "Hello, world!"
+
+    def test_with_params(self):
+        make_template(title="Test Template", body="{{ text }}")
+        before = '<template name="Test Template" text="Hello, world!"></template>'
+        assert render_templates(before) == "Hello, world!"
+
+    def test_with_params_edge_cases(self):
+        body = "{{ text }} {{text}} {{text }} {{ text}}"
+        make_template(title="Test Template", body=body)
+        before = '<template name="Test Template" text="X"></template>'
+        assert render_templates(before) == "X X X X"
+
+    def test_body(self):
+        make_template(title="Test Template", body="{{ body }}")
+        before = '<template name="Test Template">Hello, world!</template>'
+        assert render_templates(before) == "Hello, world!"
+
+    def test_no_include(self):
+        body = "Hello, world! <noinclude>X</noinclude>"
+        make_template(title="Test Template", body=body)
+        before = '<template name="Test Template"></template>'
+        assert render_templates(before) == "Hello, world!"
+
+    def test_include_only(self):
+        body = "<includeonly>Hello, world!</includeonly> <noinclude>X</noinclude>"
+        make_template(title="Test Template", body=body)
+        before = '<template name="Test Template"></template>'
+        assert render_templates(before) == "Hello, world!"
+
+    def test_nested_template(self):
+        make_template(title="Inner Template", body="Hello, world!")
+        make_template(title="Outer Template", body='<template name="Inner Template"></template>')
+        before = '<template name="Outer Template"></template>'
+        assert render_templates(before) == "Hello, world!"

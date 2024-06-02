@@ -2,7 +2,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from scarletbanner.wiki.models import Character, Secret
+from scarletbanner.wiki.models import Character, Secret, Template
 
 
 def render_secrets(original: str, character: Character, editable: bool = False) -> str:
@@ -59,3 +59,36 @@ def reconcile_secrets(original: str, edited: str) -> str:
             del tag["sid"]
 
     return str(edited_soup).strip()
+
+
+def render_templates(original: str) -> str:
+    def process_templates(content: str) -> str:
+        soup = BeautifulSoup(content, "html.parser")
+
+        for include_only in soup.find_all("includeonly"):
+            include_only.unwrap()
+
+        for no_include in soup.find_all("noinclude"):
+            no_include.replace_with("")
+
+        for instance in soup.find_all("template"):
+            name = instance.get("name")
+            if name:
+                params = {attr: instance.get(attr) for attr in instance.attrs if attr != "name"}
+                params["body"] = "".join(str(child) for child in instance.contents).strip()
+                try:
+                    page = Template.objects.get(title=name)
+                    body = page.body
+
+                    for key, value in params.items():
+                        placeholder = re.compile(rf"{{{{\s*{key}\s*}}}}")
+                        body = placeholder.sub(value, body)
+
+                    body = process_templates(body)
+                    instance.replace_with(body)
+                except Template.DoesNotExist:
+                    instance.replace_with("")
+
+        return str(soup).strip()
+
+    return process_templates(original)
