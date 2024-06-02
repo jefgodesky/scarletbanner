@@ -1,6 +1,9 @@
 import re
 from urllib.parse import quote_plus, urlencode
 
+import bleach
+import markdown
+from bleach.css_sanitizer import CSSSanitizer
 from bs4 import BeautifulSoup
 from django.db.models import Q
 from django.urls import reverse
@@ -133,3 +136,58 @@ def render_links(original: str) -> str:
 
     regex = re.compile(r"\[\[(.*?)\]\]")
     return regex.sub(replace_link, original)
+
+
+def render_markdown(original: str) -> str:
+    allowed_content_tags = [
+        "p",
+        "div",
+        "span",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "table",
+        "thead",
+        "tbody",
+        "tfoot",
+        "th",
+        "td",
+        "tr",
+        "article",
+        "aside",
+        "section",
+        "figure",
+        "figcaption",
+        "header",
+        "footer",
+        "details",
+        "summary",
+        "nav",
+    ]
+    allowed_tags = set(bleach.sanitizer.ALLOWED_TAGS.union(allowed_content_tags, {"img"}))
+    allowed_attributes = bleach.sanitizer.ALLOWED_ATTRIBUTES.copy()
+    allowed_css = CSSSanitizer(bleach.css_sanitizer.ALLOWED_CSS_PROPERTIES)
+    allowed_attributes.update(
+        {
+            "*": ["class", "style", "id"],
+            "a": ["href"],
+            "img": ["src", "alt"],
+        }
+    )
+
+    html = markdown.markdown(original, extensions=["extra", "tables", "fenced_code", "sane_lists"])
+    clean_html = bleach.clean(
+        html, tags=allowed_tags, attributes=allowed_attributes, css_sanitizer=allowed_css, strip=True
+    )
+    soup = BeautifulSoup(clean_html, "html.parser")
+
+    for tag in soup.find_all():
+        if tag.name in allowed_content_tags and not tag.get_text(strip=True):
+            tag.decompose()
+        elif not tag.get_text(strip=True):
+            tag.extract()
+
+    return str(soup).strip()
