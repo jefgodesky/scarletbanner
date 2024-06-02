@@ -1,6 +1,6 @@
 import pytest
 
-from scarletbanner.wiki.renderers import reconcile_secrets, render_secrets, render_templates
+from scarletbanner.wiki.renderers import reconcile_secrets, render_secrets, render_template_pages, render_templates
 from scarletbanner.wiki.tests.factories import SecretFactory, make_template
 
 
@@ -113,3 +113,17 @@ class TestRenderTemplates:
         make_template(title="Outer Template", body='<template name="Inner Template"></template>')
         before = '<template name="Outer Template"></template>'
         assert render_templates(before) == "Hello, world!"
+
+
+class TestRenderTemplatePage:
+    def test_no_tags(self):
+        before = "Hello, world!"
+        assert render_template_pages(before) == before
+
+    def test_no_include(self):
+        before = "Hello, world! <noinclude>X</noinclude>"
+        assert render_template_pages(before) == "Hello, world! X"
+
+    def test_include_only(self):
+        before = "<includeonly>Hello, world!</includeonly> <noinclude>X</noinclude>"
+        assert render_template_pages(before) == "X"
