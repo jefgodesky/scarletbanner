@@ -3,7 +3,16 @@ from django.contrib.auth import get_user_model
 from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, SecretEvaluator, Template
+from scarletbanner.wiki.models import (
+    Character,
+    File,
+    OwnedPage,
+    Page,
+    Secret,
+    SecretCategory,
+    SecretEvaluator,
+    Template,
+)
 from scarletbanner.wiki.tests.factories import SecretFactory, make_character, make_owned_page, make_page
 from scarletbanner.wiki.tests.utils import isstring
 
@@ -352,6 +361,16 @@ class TestCharacter:
 class TestTemplate:
     def test_create(self, template):
         assert isinstance(template, Template)
+
+
+@pytest.mark.django_db
+class TestFile:
+    def test_create(self, file):
+        assert isinstance(file, File)
+        assert file.attachment is not None
+        assert file.attachment.name == "uploads/test.txt"
+        assert file.attachment.size == 18
+        assert file.content_type == "text/plain"
 
 
 @pytest.mark.django_db

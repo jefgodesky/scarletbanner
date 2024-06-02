@@ -1,8 +1,10 @@
 import ast
+import mimetypes
 import re
 from typing import Any
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import UploadedFile
 from django.db import models
 from polymorphic.models import PolymorphicModel
 from simple_history.models import HistoricalRecords
@@ -192,6 +194,38 @@ class Character(OwnedPage):
 
 class Template(Page):
     pass
+
+
+class File(Page):
+    attachment = models.FileField(upload_to="uploads/")
+    content_type = models.CharField(max_length=255, blank=True)
+
+    @classmethod
+    def create(
+        cls,
+        editor: User,
+        title: str,
+        body: str,
+        message: str = "Initial text",
+        slug: str = None,
+        parent: Page = None,
+        attachment: UploadedFile = None,
+        read: PermissionLevel = PermissionLevel.PUBLIC,
+        write: PermissionLevel = PermissionLevel.PUBLIC,
+    ):
+        slug = slugify(title) if slug is None else slug
+        page = cls(
+            title=title, body=body, slug=slug, parent=parent, attachment=attachment, read=read.value, write=write.value
+        )
+        page.save()
+        page.stamp_revision(editor, message)
+        return page
+
+    def save(self, *args, **kwargs):
+        if self.attachment and not self.content_type:
+            content_type, _ = mimetypes.guess_type(self.attachment.name)
+            self.content_type = content_type or "application/octet-stream"
+        super().save(*args, **kwargs)
 
 
 class SecretCategory(TreeNode):

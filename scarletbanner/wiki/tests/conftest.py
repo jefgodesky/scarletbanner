@@ -4,6 +4,7 @@ from scarletbanner.wiki.tests.factories import (
     SecretCategoryFactory,
     SecretFactory,
     make_character,
+    make_file,
     make_owned_page,
     make_page,
     make_template,
@@ -39,6 +40,11 @@ def character(user):
 @pytest.fixture
 def template(user):
     return make_template(user=user)
+
+
+@pytest.fixture
+def file(user):
+    return make_file(user=user)
 
 
 @pytest.fixture
