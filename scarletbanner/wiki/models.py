@@ -174,3 +174,9 @@ class OwnedPage(Page):
         page.save()
         page.stamp_revision(editor, message)
         return page
+
+
+class Character(OwnedPage):
+    @property
+    def player(self):
+        return self.owner

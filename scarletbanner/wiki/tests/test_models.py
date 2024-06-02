@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import OwnedPage, Page
+from scarletbanner.wiki.models import Character, OwnedPage, Page
 from scarletbanner.wiki.tests.factories import make_owned_page, make_page
 from scarletbanner.wiki.tests.utils import isstring
 
@@ -339,3 +339,10 @@ class TestOwnedPage:
         )
         page.read = after.value
         assert page.can_write(after, reader) == expected
+
+
+@pytest.mark.django_db
+class TestCharacter:
+    def test_create(self, character):
+        assert isinstance(character, Character)
+        assert isinstance(character.player, User)
