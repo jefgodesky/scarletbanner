@@ -1,16 +1,14 @@
 import pytest
 
-from scarletbanner.wiki.enums import PageType
 from scarletbanner.wiki.renderers import (
     reconcile_secrets,
-    render,
     render_links,
     render_markdown,
     render_secrets,
     render_template_pages,
     render_templates,
 )
-from scarletbanner.wiki.tests.factories import SecretFactory, WikiPageFactory
+from scarletbanner.wiki.tests.factories import SecretFactory, make_character, make_owned_page, make_page, make_template
 
 
 @pytest.mark.django_db
@@ -85,45 +83,41 @@ class TestRenderTemplates:
         assert render_templates(before) == before
 
     def test_simple_template(self):
-        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body="Hello, world!")
+        make_template(title="Test Template", body="Hello, world!")
         before = '<template name="Test Template"></template>'
         assert render_templates(before) == "Hello, world!"
 
     def test_with_params(self):
-        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body="{{ text }}")
+        make_template(title="Test Template", body="{{ text }}")
         before = '<template name="Test Template" text="Hello, world!"></template>'
         assert render_templates(before) == "Hello, world!"
 
     def test_with_params_edge_cases(self):
         body = "{{ text }} {{text}} {{text }} {{ text}}"
-        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body=body)
+        make_template(title="Test Template", body=body)
         before = '<template name="Test Template" text="X"></template>'
         assert render_templates(before) == "X X X X"
 
     def test_body(self):
-        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body="{{ body }}")
+        make_template(title="Test Template", body="{{ body }}")
         before = '<template name="Test Template">Hello, world!</template>'
         assert render_templates(before) == "Hello, world!"
 
     def test_no_include(self):
         body = "Hello, world! <noinclude>X</noinclude>"
-        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body=body)
+        make_template(title="Test Template", body=body)
         before = '<template name="Test Template"></template>'
         assert render_templates(before) == "Hello, world!"
 
     def test_include_only(self):
         body = "<includeonly>Hello, world!</includeonly> <noinclude>X</noinclude>"
-        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Test Template", body=body)
+        make_template(title="Test Template", body=body)
         before = '<template name="Test Template"></template>'
         assert render_templates(before) == "Hello, world!"
 
     def test_nested_template(self):
-        WikiPageFactory(page_type=PageType.TEMPLATE.value, title="Inner Template", body="Hello, world!")
-        WikiPageFactory(
-            page_type=PageType.TEMPLATE.value,
-            title="Outer Template",
-            body='<template name="Inner Template"></template>',
-        )
+        make_template(title="Inner Template", body="Hello, world!")
+        make_template(title="Outer Template", body='<template name="Inner Template"></template>')
         before = '<template name="Outer Template"></template>'
         assert render_templates(before) == "Hello, world!"
 
@@ -148,8 +142,8 @@ class TestRenderLinks:
         before = "Hello, world!"
         assert render_links(before) == before
 
-    def test_basic_link(self):
-        WikiPageFactory(title="Test Page", slug="test")
+    def test_page_link(self):
+        make_page(title="Test Page", slug="test")
         before = "Before [[Test Page]] After"
         assert render_links(before) == 'Before <a href="/wiki/test/">Test Page</a> After'
 
@@ -158,14 +152,29 @@ class TestRenderLinks:
         assert render_links(before) == 'Before <a href="/wiki/create/?title=Test+Page" class="new">Test Page</a> After'
 
     def test_alias_link(self):
-        WikiPageFactory(title="Test Page", slug="test")
+        make_page(title="Test Page", slug="test")
         before = "This is a [[Test Page | test]]."
         assert render_links(before) == 'This is a <a href="/wiki/test/">test</a>.'
 
     def test_slug_link(self):
-        WikiPageFactory(title="Test Page", slug="test")
+        make_page(title="Test Page", slug="test")
         before = "This is a [[ /wiki/test | test]]."
         assert render_links(before) == 'This is a <a href="/wiki/test/">test</a>.'
+
+    def test_owned_page_link(self):
+        make_owned_page(title="Test Page", slug="test")
+        before = "Before [[Test Page]] After"
+        assert render_links(before) == 'Before <a href="/wiki/test/">Test Page</a> After'
+
+    def test_character_link(self):
+        make_character(title="Test Page", slug="test")
+        before = "Before [[Test Page]] After"
+        assert render_links(before) == 'Before <a href="/wiki/test/">Test Page</a> After'
+
+    def test_temlate_link(self):
+        make_template(title="Test Page", slug="test")
+        before = "Before [[Test Page]] After"
+        assert render_links(before) == 'Before <a href="/wiki/test/">Test Page</a> After'
 
 
 class TestRenderMarkdown:
@@ -180,10 +189,3 @@ class TestRenderMarkdown:
     def test_sanitize(self):
         before = "<script></script>\n\n<body></body>\n\n<head></head>\n\nBefore\n\n<div>Hello, world!</div>\n\nAfter"
         assert render_markdown(before) == "<p>Before</p>\n<div>Hello, world!</div>\n<p>After</p>"
-
-
-@pytest.mark.django_db
-class TestRender:
-    def test_basic(self, character):
-        before = "**bold** _italic_"
-        assert render(before, character) == "<p><strong>bold</strong> <em>italic</em></p>"

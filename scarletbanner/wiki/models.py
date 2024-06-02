@@ -1,319 +1,197 @@
 import ast
-import datetime
 import re
 from typing import Any
 
-from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models import F, Max, Q
-from django.db.models.query import QuerySet
-from django.db.models.signals import post_save, pre_save
-from django.db.utils import IntegrityError
-from django.dispatch import receiver
+from polymorphic.models import PolymorphicModel
+from simple_history.models import HistoricalRecords
+from simple_history.utils import update_change_reason
 from slugify import slugify
 from tree_queries.models import TreeNode
 
-from scarletbanner.users.models import User
-from scarletbanner.wiki.enums import PageType, PermissionLevel
+from scarletbanner.wiki.enums import PermissionLevel
+
+User = get_user_model()
 
 
-def get_unique_slug_element(slug: str) -> str:
-    parts = [part for part in slug.split("/")]
-    return parts[-1]
+class Page(PolymorphicModel):
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=1024, unique=True)
+    body = models.TextField()
+    parent = models.ForeignKey("Page", related_name="children", on_delete=models.SET_NULL, null=True, blank=True)
+    read = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
+    write = models.IntegerField(default=PermissionLevel.PUBLIC, choices=PermissionLevel.get_choices())
+    history = HistoricalRecords(inherit=True)
 
-
-class WikiPage(models.Model):
-    def __str__(self) -> str:
-        return self.latest.title
-
-    @property
-    def latest(self) -> "Revision":
-        return self.revisions.order_by("-timestamp", "-id").first()
-
-    @property
-    def original(self) -> "Revision":
-        return self.revisions.order_by("timestamp", "id").first()
+    def __str__(self):
+        return self.title
 
     @property
-    def page_type(self) -> PageType:
-        return PageType(self.latest.page_type)
-
-    @property
-    def title(self) -> str:
-        return self.latest.title
-
-    @property
-    def slug(self) -> str:
-        return self.latest.slug
+    def editors(self):
+        ids = self.history.exclude(history_user=None).values_list("history_user", flat=True).distinct()
+        return User.objects.filter(id__in=ids)
 
     @property
     def unique_slug_element(self) -> str:
-        return get_unique_slug_element(self.slug)
-
-    @property
-    def body(self) -> str:
-        return self.latest.body
-
-    @property
-    def owner(self) -> User or None:
-        return self.latest.owner
-
-    @property
-    def parent(self) -> "WikiPage" or None:
-        return self.latest.parent
-
-    @property
-    def read(self) -> PermissionLevel:
-        return PermissionLevel(self.latest.read)
-
-    @property
-    def write(self) -> PermissionLevel:
-        return PermissionLevel(self.latest.write)
-
-    @property
-    def updated(self) -> datetime:
-        return self.latest.timestamp
-
-    @property
-    def created(self) -> datetime:
-        return self.original.timestamp
-
-    @property
-    def created_by(self) -> User:
-        return self.original.editor
-
-    @property
-    def editors(self) -> list[User]:
-        return [revision.editor for revision in self.revisions.order_by("timestamp", "id")]
-
-    @property
-    def children(self) -> list["WikiPage"]:
-        latest_revisions = (
-            Revision.objects.filter(parent=self)
-            .annotate(latest_timestamp=Max("page__revisions__timestamp"))
-            .filter(timestamp=F("latest_timestamp"))
-        )
-        return [rev.page for rev in latest_revisions]
-
-    def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
-        is_admin = user is not None and user.is_staff
-        is_owner = self.owner == user
-        is_editor = user in self.editors
-
-        match permission:
-            case PermissionLevel.PUBLIC:
-                return True
-            case PermissionLevel.MEMBERS_ONLY:
-                return user is not None
-            case PermissionLevel.EDITORS_ONLY:
-                return is_editor or is_admin or is_owner
-            case PermissionLevel.OWNER_ONLY:
-                return is_admin or is_owner
-            case _:
-                return is_admin
-
-    def can_read(self, user: User = None) -> bool:
-        return self.evaluate_permission(self.read, user)
-
-    def can_write(self, to: PermissionLevel, user: User = None) -> bool:
-        can_read = self.can_read(user)
-        can_write_before = self.evaluate_permission(self.write, user)
-        can_write_after = self.evaluate_permission(to, user)
-        return can_read and can_write_before and can_write_after
-
-    def update(
-        self,
-        page_type: PageType,
-        title: str,
-        body: str,
-        editor: User,
-        read: PermissionLevel,
-        write: PermissionLevel,
-        message: str,
-        slug: str or None = None,
-        parent: "WikiPage" = None,
-        owner: User or None = None,
-    ) -> None:
-        if not self.can_write(write, editor):
-            return
-
-        slug = slugify(title) if slug is None else slug
-        Revision.objects.create(
-            page_type=page_type.value,
-            title=title,
-            slug=slug,
-            body=body,
-            page=self,
-            editor=editor,
-            read=read.value,
-            write=write.value,
-            message=message,
-            owner=owner,
-            parent=parent,
-        )
-
-    def patch(
-        self,
-        editor: User,
-        message: str,
-        page_type: PageType = None,
-        title: str = None,
-        slug: str = None,
-        body: str = None,
-        parent: "WikiPage" = None,
-        owner: User or None = None,
-        read: PermissionLevel = None,
-        write: PermissionLevel = None,
-    ) -> None:
-        patch_type = self.page_type if page_type is None else page_type
-        patch_title = self.title if title is None else title
-        patch_slug = self.slug if slug is None else slug
-        patch_body = self.body if body is None else body
-        patch_parent = self.parent if parent is None else parent
-        patch_owner = self.owner if owner is None else owner
-        patch_read = self.read if read is None else read
-        patch_write = self.write if write is None else write
-
-        if not self.can_write(patch_write, editor):
-            return
-
-        Revision.objects.create(
-            page_type=patch_type.value,
-            title=patch_title,
-            slug=patch_slug,
-            body=patch_body,
-            parent=patch_parent,
-            owner=patch_owner,
-            page=self,
-            editor=editor,
-            read=patch_read.value,
-            write=patch_write.value,
-            message=message,
-        )
-
-    def reparent(self, editor: User, new_parent: "WikiPage" or None = None) -> None:
-        none_message = "Reparenting to root"
-        new_message = f"Reparenting to {new_parent}"
-        message = none_message if new_parent is None else new_message
-
-        self.update(
-            page_type=self.page_type,
-            title=self.title,
-            body=self.body,
-            editor=editor,
-            read=self.read,
-            write=self.write,
-            message=message,
-            slug=self.unique_slug_element,
-            parent=new_parent,
-            owner=self.owner,
-        )
-
-        for child in self.children:
-            child.reparent(editor, new_parent=self)
-
-    def destroy(self, editor: User) -> None:
-        for child in self.children:
-            child.reparent(editor, new_parent=self.parent)
-
-        super().delete()
-
-    @classmethod
-    def create(
-        cls,
-        title: str,
-        body: str,
-        editor: User,
-        message: str = "Initial text",
-        page_type: PageType = PageType.PAGE,
-        read: PermissionLevel = PermissionLevel.PUBLIC,
-        write: PermissionLevel = PermissionLevel.PUBLIC,
-        slug: str = None,
-        parent: "WikiPage" or None = None,
-        owner: User or None = None,
-    ) -> "WikiPage":
-        page = cls.objects.create()
-        slug = slugify(title) if slug is None else slug
-        Revision.objects.create(
-            page=page,
-            page_type=page_type.value,
-            title=title,
-            slug=slug,
-            body=body,
-            message=message,
-            editor=editor,
-            read=read.value,
-            write=write.value,
-            parent=parent,
-            owner=owner,
-        )
-        return page
-
-    @classmethod
-    def get_type(cls, page_type: PageType, owner: User or None = None) -> QuerySet["WikiPage"]:
-        latest = Q(revisions__is_latest=True, revisions__page_type=page_type.value)
-
-        if owner is None:
-            return cls.objects.filter(latest).distinct()
-
-        return cls.objects.filter(latest, revisions__owner=owner).distinct()
-
-
-class Revision(models.Model):
-    page_type = models.CharField(max_length=20, choices=PageType.get_choices(), default=PageType.PAGE.value)
-    title = models.CharField(max_length=255)
-    slug = models.CharField(max_length=255)
-    body = models.TextField(null=True, blank=True)
-    message = models.TextField(max_length=255)
-    page = models.ForeignKey(WikiPage, related_name="revisions", on_delete=models.CASCADE)
-    editor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="revisions", on_delete=models.CASCADE)
-    owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name="owned_pages", on_delete=models.CASCADE, null=True, blank=True
-    )
-    read = models.CharField(max_length=20, choices=PermissionLevel.get_choices(), default=PermissionLevel.PUBLIC.value)
-    write = models.CharField(
-        max_length=20, choices=PermissionLevel.get_choices(), default=PermissionLevel.PUBLIC.value
-    )
-    timestamp = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey(WikiPage, on_delete=models.SET_NULL, null=True, blank=True)
-    is_latest = models.BooleanField(default=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["slug", "page"], condition=Q(is_latest=True), name="unique_page_slug")
-        ]
-
-    def __str__(self) -> str:
-        return self.slug
-
-    def save(self, *args, **kwargs):
-        if self.is_latest:
-            Revision.objects.filter(page=self.page, is_latest=True).exclude(pk=self.pk).update(is_latest=False)
-
-        if Revision.objects.filter(slug=self.slug, is_latest=True).exclude(page=self.page).exists():
-            raise IntegrityError(f"A page with the slug '{self.slug}' already exists.")
-
-        self.set_slug(self.slug)
-        super().save(*args, **kwargs)
+        parts = [part for part in self.slug.split("/")]
+        return parts[-1]
 
     def set_slug(self, slug: str or None = None):
-        slug = slugify(self.title) if slug is None else slugify(get_unique_slug_element(slug))
+        slug = slugify(self.title) if slug is None else slugify(self.unique_slug_element)
         if self.parent is not None:
             slug = f"{self.parent.slug}/{slug}"
 
         self.slug = slug
 
+    def save(self, *args, **kwargs):
+        self.set_slug(self.slug)
+        if Page.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            raise ValueError("Slug must be unique.")
+        super().save(*args, **kwargs)
 
-@receiver(pre_save, sender=Revision)
-def set_latest_revision(sender, instance, **kwargs):
-    if instance.pk is None:
-        instance.is_latest = True
+    def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
+        if user is not None and user.is_staff:
+            return True
+
+        match PermissionLevel(permission):
+            case PermissionLevel.PUBLIC:
+                return True
+            case PermissionLevel.MEMBERS_ONLY:
+                return user is not None
+            case PermissionLevel.EDITORS_ONLY:
+                return user in self.editors
+            case _:
+                return False
+
+    def can_read(self, user: User = None) -> bool:
+        return self.evaluate_permission(PermissionLevel(self.read), user)
+
+    def can_write(self, to: PermissionLevel, user: User = None) -> bool:
+        can_read = self.can_read(user)
+        can_write_before = self.evaluate_permission(PermissionLevel(self.write), user)
+        can_write_after = self.evaluate_permission(to, user)
+        editor_exception = user is not None and to == PermissionLevel.EDITORS_ONLY
+        no_write_lockout = can_write_after or editor_exception
+        no_read_lockout = to.value <= self.read or editor_exception
+        return can_read and can_write_before and no_write_lockout and no_read_lockout
+
+    def update(
+        self,
+        editor: User,
+        message: str,
+        title: str = None,
+        body: str = None,
+        slug: str = None,
+        parent: "Page" = None,
+        read: PermissionLevel = None,
+        write: PermissionLevel = None,
+    ):
+        read = PermissionLevel(self.write) if read is None else read
+        write = PermissionLevel(self.write) if write is None else write
+        will_read = self.evaluate_permission(read, editor) or read == PermissionLevel.EDITORS_ONLY
+
+        if not self.can_write(write, editor) or not will_read:
+            return
+
+        self.title = self.title if title is None else title
+        self.body = self.body if body is None else body
+        self.slug = self.slug if slug is None else slug
+        self.parent = self.parent if parent is None else parent
+        self.read = read.value
+        self.write = write.value
+        self.stamp_revision(editor, message)
+
+    def reparent(self, editor: User, new_parent: "Page" or None = None) -> None:
+        message = f"Reparenting to {'root' if new_parent is None else new_parent.slug}"
+
+        self.parent = None
+        self.update(
+            editor=editor,
+            message=message,
+            parent=new_parent,
+        )
+
+        for child in self.children.all():
+            child.reparent(editor, new_parent=self)
+
+    def destroy(self, editor: User) -> None:
+        children = list(self.children.all())
+        new_parent = self.parent
+
+        super().delete()
+
+        for child in children:
+            child.reparent(editor, new_parent=new_parent)
+
+    def stamp_revision(self, editor: User, message: str):
+        self.save()
+        latest = self.history.first()
+        latest.history_user = editor
+        latest.save()
+        update_change_reason(self, message)
+
+    @classmethod
+    def create(
+        cls,
+        editor: User,
+        title: str,
+        body: str,
+        message: str = "Initial text",
+        slug: str = None,
+        parent: "Page" = None,
+        read: PermissionLevel = PermissionLevel.PUBLIC,
+        write: PermissionLevel = PermissionLevel.PUBLIC,
+    ):
+        slug = slugify(title) if slug is None else slug
+        page = cls(title=title, body=body, slug=slug, parent=parent, read=read.value, write=write.value)
+        page.save()
+        page.stamp_revision(editor, message)
+        return page
 
 
-@receiver(post_save, sender=Revision)
-def update_latest_revision(sender, instance, created, **kwargs):
-    if created:
-        Revision.objects.filter(page=instance.page).exclude(pk=instance.pk).update(is_latest=False)
+class OwnedPage(Page):
+    owner = models.ForeignKey(User, related_name="pages", on_delete=models.SET_NULL, null=True, blank=True)
+
+    def evaluate_permission(self, permission: PermissionLevel, user: User = None) -> bool:
+        is_owner = self.owner == user
+        is_admin = user is not None and user.is_staff
+
+        if permission == PermissionLevel.OWNER_ONLY:
+            return is_owner or is_admin
+        elif permission == PermissionLevel.EDITORS_ONLY and is_owner:
+            return True
+        else:
+            return super().evaluate_permission(permission, user)
+
+    @classmethod
+    def create(
+        cls,
+        editor: User,
+        title: str,
+        body: str,
+        message: str = "Initial text",
+        slug: str = None,
+        parent: "Page" = None,
+        owner: User = None,
+        read: PermissionLevel = PermissionLevel.PUBLIC,
+        write: PermissionLevel = PermissionLevel.PUBLIC,
+    ):
+        slug = slugify(title) if slug is None else slug
+        page = cls(title=title, body=body, slug=slug, parent=parent, owner=owner, read=read.value, write=write.value)
+        page.save()
+        page.stamp_revision(editor, message)
+        return page
+
+
+class Character(OwnedPage):
+    @property
+    def player(self):
+        return self.owner
+
+
+class Template(Page):
+    pass
 
 
 class SecretCategory(TreeNode):
@@ -331,22 +209,22 @@ class Secret(models.Model):
     key = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
     categories = models.ManyToManyField(SecretCategory, related_name="secrets")
-    known_to = models.ManyToManyField(WikiPage, related_name="secrets_known", blank=True)
+    known_to = models.ManyToManyField(Character, related_name="secrets_known", blank=True)
 
     def __str__(self):
         return self.key
 
-    def knows(self, character: WikiPage) -> bool:
+    def knows(self, character: Character) -> bool:
         return self.known_to.filter(pk=character.pk).exists()
 
     @staticmethod
-    def evaluate(expression: str, character: WikiPage, secrets: Any = None) -> bool:
+    def evaluate(expression: str, character: Character, secrets: Any = None) -> bool:
         secrets = Secret.objects.all() if secrets is None else secrets
         return SecretEvaluator(character, secrets).eval(expression)
 
 
 class SecretEvaluator(ast.NodeVisitor):
-    def __init__(self, character: WikiPage, secrets: Any = None):
+    def __init__(self, character: Character, secrets: Any = None):
         secrets = Secret.objects.all() if secrets is None else secrets
         self.character = character
         self.secrets = {

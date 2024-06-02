@@ -8,11 +8,10 @@ from bs4 import BeautifulSoup
 from django.db.models import Q
 from django.urls import reverse
 
-from scarletbanner.wiki.enums import PageType
-from scarletbanner.wiki.models import Revision, Secret, WikiPage
+from scarletbanner.wiki.models import Character, Page, Secret, Template
 
 
-def render_secrets(original: str, character: WikiPage, editable: bool = False) -> str:
+def render_secrets(original: str, character: Character, editable: bool = False) -> str:
     soup = BeautifulSoup(original, "html.parser")
     all_secrets = Secret.objects.all()
     sid = 0
@@ -84,7 +83,7 @@ def render_templates(original: str) -> str:
                 params = {attr: instance.get(attr) for attr in instance.attrs if attr != "name"}
                 params["body"] = "".join(str(child) for child in instance.contents).strip()
                 try:
-                    page = Revision.objects.get(is_latest=True, page_type=PageType.TEMPLATE.value, title=name)
+                    page = Template.objects.get(title=name)
                     body = page.body
 
                     for key, value in params.items():
@@ -93,7 +92,7 @@ def render_templates(original: str) -> str:
 
                     body = process_templates(body)
                     instance.replace_with(body)
-                except Revision.DoesNotExist:
+                except Template.DoesNotExist:
                     instance.replace_with("")
 
         return str(soup).strip()
@@ -124,7 +123,7 @@ def render_links(original: str) -> str:
 
         slug_prefix = "/wiki/"
         slug = key[len(slug_prefix) :].rstrip("/") if key.startswith(slug_prefix) else key
-        page = Revision.objects.filter(is_latest=True).filter(Q(title=key) | Q(slug=slug)).first()
+        page = Page.objects.filter(Q(title=key) | Q(slug=slug)).first()
 
         if page:
             url = reverse("wiki:page", kwargs={"slug": page.slug})
@@ -192,10 +191,3 @@ def render_markdown(original: str) -> str:
             tag.extract()
 
     return str(soup).strip()
-
-
-def render(original: str, character: WikiPage) -> str:
-    redacted = render_secrets(original, character)
-    templated = render_templates(redacted)
-    linked = render_links(templated)
-    return render_markdown(linked)

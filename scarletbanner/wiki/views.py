@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404, render
 
-from scarletbanner.wiki.models import WikiPage
+from scarletbanner.wiki.models import Page
 
 
 def create(request):
@@ -8,5 +8,5 @@ def create(request):
 
 
 def page(request, slug):
-    page = get_object_or_404(WikiPage, slug=slug)
+    page = get_object_or_404(Page, slug=slug)
     return render(request, "wiki/page.html", {"page": page})

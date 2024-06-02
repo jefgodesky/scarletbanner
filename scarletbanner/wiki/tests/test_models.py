@@ -1,164 +1,134 @@
 import pytest
 from django.contrib.auth import get_user_model
-from django.db.utils import IntegrityError
+from slugify import slugify
 
-from scarletbanner.wiki.enums import PageType, PermissionLevel
-from scarletbanner.wiki.models import Revision, Secret, SecretCategory, SecretEvaluator, WikiPage
-from scarletbanner.wiki.tests.factories import CharacterFactory, SecretFactory, WikiPageFactory
+from scarletbanner.wiki.enums import PermissionLevel
+from scarletbanner.wiki.models import Character, OwnedPage, Page, Secret, SecretCategory, SecretEvaluator, Template
+from scarletbanner.wiki.tests.factories import SecretFactory, make_character, make_owned_page, make_page
+from scarletbanner.wiki.tests.utils import isstring
 
 User = get_user_model()
 
 
-def is_string(variable) -> bool:
-    return isinstance(variable, str) and len(variable) > 0
-
-
 @pytest.mark.django_db
-class TestWikiPage:
-    def test_create_read(self, wiki_page):
-        assert is_string(wiki_page.title)
-        assert is_string(wiki_page.slug)
-        assert is_string(wiki_page.body)
-        assert wiki_page.read == PermissionLevel.PUBLIC
-        assert wiki_page.write == PermissionLevel.PUBLIC
+class TestPage:
+    def test_create(self, page):
+        assert isinstance(page, Page)
+        assert isstring(page.title)
+        assert isstring(page.slug)
+        assert isstring(page.body)
+        assert page.slug == slugify(page.title)
+        assert page.read == PermissionLevel.PUBLIC.value
+        assert page.write == PermissionLevel.PUBLIC.value
 
-    def test_create_read_character(self, character):
-        assert character.page_type == PageType.CHARACTER
-        assert isinstance(character.owner, User)
+    def test_create_default_message(self, user):
+        page = Page.create(user, "Test Page", "This is a test.")
+        history = page.history.first()
+        assert history.history_change_reason == "Initial text"
 
-    def test_create_child(self, child_wiki_page):
-        assert isinstance(child_wiki_page, WikiPage)
+    def test_create_message(self, user):
+        page = Page.create(user, "Test Page", "This is a test.", "Test")
+        history = page.history.first()
+        assert history.history_change_reason == "Test"
 
-    def test_str(self, wiki_page):
-        assert is_string(wiki_page.title)
+    def test_create_child(self, child_page):
+        assert isinstance(child_page, Page)
+        assert isinstance(child_page.parent, Page)
+        assert child_page.slug == "parent/child"
 
-    def test_get_type(self, character, other):
-        all_characters = WikiPage.get_type(PageType.CHARACTER)
-        player_characters = WikiPage.get_type(PageType.CHARACTER, owner=character.owner)
-        other_characters = WikiPage.get_type(PageType.CHARACTER, owner=other)
-        assert len(all_characters) == 1
-        assert len(player_characters) == 1
-        assert len(other_characters) == 0
-        assert all_characters[0] == character
-        assert player_characters[0] == character
+    def test_unique_slug(self, page):
+        with pytest.raises(ValueError):
+            Page.create(page.editors[0], "Second Page", "This is a test.", "Test", page.slug)
 
-    def test_update(self, updated_wiki_page):
-        assert updated_wiki_page.revisions.count() == 2
+    def test_unique_slug_element(self, grandchild_page):
+        assert grandchild_page.unique_slug_element == "grandchild"
+        assert grandchild_page.parent.unique_slug_element == "child"
+        assert grandchild_page.parent.parent.unique_slug_element == "parent"
 
-    def test_update_type(self, wiki_page):
-        wiki_page.update(
-            page_type=PageType.CHARACTER,
-            title=wiki_page.title,
-            slug=wiki_page.slug,
-            body=wiki_page.body,
-            editor=wiki_page.created_by,
-            message="Update page type",
-            read=PermissionLevel.PUBLIC,
-            write=PermissionLevel.PUBLIC,
-        )
-        assert wiki_page.page_type == PageType.CHARACTER
+    def test_update(self, user, page):
+        updated_title = "Updated Page"
+        updated_body = "This is a test."
+        message = "Test"
+        page.update(editor=user, title=updated_title, body=updated_body, message=message)
+        assert page.title == updated_title
+        assert page.body == updated_body
+        assert page.history.first().history_change_reason == message
 
-    def test_update_child(self, wiki_page, parent_wiki_page):
-        wiki_page.patch(
-            slug="parent/test", parent=parent_wiki_page, editor=wiki_page.created_by, message="Patching test"
-        )
-        assert wiki_page.parent == parent_wiki_page
+    def test_patch(self, user, page):
+        updated_title = "Updated Page"
+        message = "Test patching"
+        body_before = page.body
+        page.update(editor=user, title=updated_title, message=message)
+        assert page.title == updated_title
+        assert page.body == body_before
 
-    def test_update_not_allowed(self, user, other):
-        page = WikiPageFactory(write=PermissionLevel.EDITORS_ONLY.value)
+    def test_update_parent(self, page, child_page):
+        page.update(parent=child_page.parent, editor=page.editors[0], message="Test")
+        assert page.parent == child_page.parent
+        assert page.slug.startswith(child_page.parent.slug + "/")
+
+    def test_update_cannot_lock_self_out_write(self, user, page):
+        before = page.history.count()
+        updated_title = "Updated Page"
         page.update(
-            page_type=PageType.PAGE,
-            title="Updated",
-            slug="updated",
-            body="Updated",
-            editor=other,
-            message="Test update",
-            write=PermissionLevel.PUBLIC,
-            read=PermissionLevel.PUBLIC,
+            editor=user, title=updated_title, body="Test", message="Lock out", write=PermissionLevel.ADMIN_ONLY
         )
-        assert page.title != "Updated"
+        assert page.title != updated_title
+        assert page.history.count() == before
 
-    def test_update_no_lockout(self, wiki_page):
-        wiki_page.update(
-            page_type=PageType.PAGE,
-            title="Updated",
-            slug="updated",
-            body="Updated",
-            editor=wiki_page.created_by,
-            message="Test update",
-            write=PermissionLevel.OWNER_ONLY,
-            read=PermissionLevel.PUBLIC,
+    def test_update_can_make_editors_only_write(self, user, other, page):
+        updated_title = "Updated Page"
+        page.update(
+            editor=other, title=updated_title, body="Test", message="Editors only", write=PermissionLevel.EDITORS_ONLY
         )
-        assert wiki_page.title != "Updated"
+        assert page.title == updated_title
+        assert other in page.editors
+        assert page.can_read(other)
 
-    def test_patch(self, wiki_page):
-        body = wiki_page.body
-        updated_title = "Updated Title"
-        updated_slug = "updated"
-        wiki_page.patch(wiki_page.created_by, message="Patching test", title=updated_title, slug=updated_slug)
-        assert wiki_page.title == updated_title
-        assert wiki_page.body == body
+    def test_update_cannot_lock_self_out_read(self, user, page):
+        before = page.history.count()
+        updated_title = "Updated Page"
+        page.update(editor=user, title=updated_title, body="Test", message="Lock out", read=PermissionLevel.ADMIN_ONLY)
+        assert page.title != updated_title
+        assert page.history.count() == before
 
-    def test_patch_type(self, wiki_page):
-        wiki_page.patch(
-            page_type=PageType.CHARACTER,
-            editor=wiki_page.created_by,
-            message="Update page type",
+    def test_update_can_make_editors_only_read(self, user, other, page):
+        updated_title = "Updated Page"
+        page.update(
+            editor=other, title=updated_title, body="Test", message="Editors only", read=PermissionLevel.EDITORS_ONLY
         )
-        assert wiki_page.page_type == PageType.CHARACTER
+        assert page.title == updated_title
+        assert other in page.editors
+        assert page.can_read(other)
 
-    def test_destroy(self, wiki_page):
-        wiki_page_id = wiki_page.id
-        wiki_page.destroy(wiki_page.created_by)
-        with pytest.raises(WikiPage.DoesNotExist):
-            WikiPage.objects.get(id=wiki_page_id)
-            Revision.objects.get(wiki_page=wiki_page_id)
+    def test_destroy(self, page):
+        pk = page.pk
+        page.destroy(page.editors[0])
+        with pytest.raises(Page.DoesNotExist):
+            Page.objects.get(pk=pk)
 
-    def test_destroy_grandparent(self, grandchild_wiki_page):
-        grandchild_wiki_page.parent.parent.destroy(grandchild_wiki_page.editors[0])
-        assert grandchild_wiki_page.parent.parent is None
-        assert grandchild_wiki_page.parent.slug == "child"
-        assert grandchild_wiki_page.parent.children[0] == grandchild_wiki_page
-        assert isinstance(grandchild_wiki_page.parent, WikiPage)
-        assert grandchild_wiki_page.slug == "child/grandchild"
+    def test_destroy_grandparent(self, grandchild_page):
+        grandchild_page.parent.parent.destroy(grandchild_page.editors[0])
+        grandchild_page.refresh_from_db()
+        assert grandchild_page.parent.parent is None
+        assert grandchild_page.parent.slug == "child"
+        assert grandchild_page.parent.children.first() == grandchild_page
+        assert isinstance(grandchild_page.parent, Page)
+        assert grandchild_page.slug == "child/grandchild"
 
-    def test_destroy_middle(self, grandchild_wiki_page):
-        grandparent = grandchild_wiki_page.parent.parent
-        grandchild_wiki_page.parent.destroy(grandchild_wiki_page.editors[0])
+    def test_destroy_middle(self, grandchild_page):
+        grandparent = grandchild_page.parent.parent
+        grandchild_page.parent.destroy(grandchild_page.editors[0])
+        grandchild_page.refresh_from_db()
         assert grandparent.slug == "parent"
-        assert grandparent.children[0] == grandchild_wiki_page
-        assert grandchild_wiki_page.parent == grandparent
-        assert grandchild_wiki_page.slug == "parent/grandchild"
+        assert grandparent.children.first() == grandchild_page
+        assert grandchild_page.parent == grandparent
+        assert grandchild_page.slug == "parent/grandchild"
 
-    def test_unique_slug_element(self, grandchild_wiki_page):
-        assert grandchild_wiki_page.unique_slug_element == "grandchild"
-        assert grandchild_wiki_page.parent.unique_slug_element == "child"
-        assert grandchild_wiki_page.parent.parent.unique_slug_element == "parent"
-
-    def test_latest(self, revision):
-        assert revision.page.latest == revision
-
-    def test_original(self, updated_wiki_page):
-        orig = updated_wiki_page.revisions.order_by("timestamp", "id").first()
-        assert updated_wiki_page.original == orig
-
-    def test_updated(self, updated_wiki_page):
-        assert updated_wiki_page.updated == updated_wiki_page.latest.timestamp
-
-    def test_created(self, updated_wiki_page):
-        assert updated_wiki_page.created == updated_wiki_page.original.timestamp
-
-    def test_created_by(self, updated_wiki_page):
-        assert updated_wiki_page.created_by == updated_wiki_page.original.editor
-
-    def test_editors(self, updated_wiki_page):
-        assert len(updated_wiki_page.editors) == 2
-        assert updated_wiki_page.editors[0] == updated_wiki_page.original.editor
-        assert updated_wiki_page.editors[1] == updated_wiki_page.latest.editor
-
-    def test_children(self, child_wiki_page):
-        assert len(child_wiki_page.parent.children) == 1
-        assert child_wiki_page.parent.children[0] == child_wiki_page
+    def test_editors(self, user, other, page):
+        page.update(other, "Updated Page", "This is a test.", "Test")
+        assert page.editors.count() == 2
+        assert all(isinstance(editor, User) for editor in page.editors)
 
     @pytest.mark.parametrize(
         "permission, reader_fixture, expected",
@@ -166,33 +136,30 @@ class TestWikiPage:
             (PermissionLevel.PUBLIC, None, True),
             (PermissionLevel.PUBLIC, "other", True),
             (PermissionLevel.PUBLIC, "user", True),
-            (PermissionLevel.PUBLIC, "owner", True),
             (PermissionLevel.PUBLIC, "admin", True),
             (PermissionLevel.MEMBERS_ONLY, None, False),
             (PermissionLevel.MEMBERS_ONLY, "other", True),
             (PermissionLevel.MEMBERS_ONLY, "user", True),
-            (PermissionLevel.MEMBERS_ONLY, "owner", True),
             (PermissionLevel.MEMBERS_ONLY, "admin", True),
             (PermissionLevel.EDITORS_ONLY, None, False),
             (PermissionLevel.EDITORS_ONLY, "other", False),
             (PermissionLevel.EDITORS_ONLY, "user", True),
-            (PermissionLevel.EDITORS_ONLY, "owner", True),
             (PermissionLevel.EDITORS_ONLY, "admin", True),
-            (PermissionLevel.OWNER_ONLY, None, False),
-            (PermissionLevel.OWNER_ONLY, "other", False),
-            (PermissionLevel.OWNER_ONLY, "user", False),
-            (PermissionLevel.OWNER_ONLY, "owner", True),
-            (PermissionLevel.OWNER_ONLY, "admin", True),
             (PermissionLevel.ADMIN_ONLY, None, False),
             (PermissionLevel.ADMIN_ONLY, "other", False),
             (PermissionLevel.ADMIN_ONLY, "user", False),
-            (PermissionLevel.ADMIN_ONLY, "owner", False),
             (PermissionLevel.ADMIN_ONLY, "admin", True),
         ],
     )
-    def test_can_read(self, request, permission, reader_fixture, expected, user, owner):
-        page = WikiPageFactory(editor=user, owner=owner, read=permission.value)
-        reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
+    def test_can_read(self, request, permission, reader_fixture, expected, user):
+        page = make_page(user=user, read=permission)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else request.getfixturevalue(reader_fixture)
+        )
         assert page.can_read(reader) == expected
 
     @pytest.mark.parametrize(
@@ -201,196 +168,200 @@ class TestWikiPage:
             (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, None, True),
             (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, None, False),
             (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, None, False),
-            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, None, False),
             (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, None, False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, None, False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, None, False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, None, False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, None, False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, None, False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, None, False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, None, False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, None, False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
             (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "other", True),
             (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "other", True),
             (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "other", False),
-            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "other", False),
             (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "other", False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "other", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "other", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "other", False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "other", False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "other", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "other", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "other", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "other", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
             (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "user", True),
             (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "user", True),
             (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "user", True),
-            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "user", False),
             (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "user", False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "user", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "user", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "user", True),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "user", True),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "user", True),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "user", True),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "user", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "user", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "user", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "user", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "user", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "user", False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
-            (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "owner", True),
-            (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "owner", True),
-            (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "owner", True),
-            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "owner", True),
-            (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "owner", False),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "owner", True),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "owner", True),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "owner", True),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "owner", False),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "owner", True),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "owner", True),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "owner", True),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "owner", False),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "owner", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "owner", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "owner", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "owner", False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "owner", False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "owner", False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "owner", False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "owner", False),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "owner", False),
             (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "admin", True),
             (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "admin", True),
             (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "admin", True),
-            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "admin", True),
             (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "admin", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "admin", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
-            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
             (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "admin", True),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
-            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
             (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "admin", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
-            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "admin", True),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
-            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
         ],
     )
-    def test_can_write(self, request, before, after, reader_fixture, expected, user, owner):
-        page = WikiPageFactory(editor=user, owner=owner, write=before.value)
-        reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
+    def test_can_write(self, request, before, after, reader_fixture, expected, user):
+        page = make_page(user=user, write=before)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else request.getfixturevalue(reader_fixture)
+        )
+        page.read = after.value
         assert page.can_write(after, reader) == expected
 
 
 @pytest.mark.django_db
-class TestRevision:
-    def test_create_read(self, revision):
-        assert is_string(revision.title)
-        assert is_string(revision.slug)
-        assert is_string(revision.body)
-        assert revision.read == PermissionLevel.PUBLIC.value
-        assert revision.write == PermissionLevel.PUBLIC.value
+class TestOwnedPage:
+    def test_create(self, owned_page):
+        assert isinstance(owned_page, OwnedPage)
+        assert isinstance(owned_page.owner, User)
+        assert isstring(owned_page.title)
+        assert isstring(owned_page.slug)
+        assert isstring(owned_page.body)
 
-    def test_create_with_owner(self, owned_wiki_page):
-        assert isinstance(owned_wiki_page.owner, User)
+    @pytest.mark.parametrize(
+        "permission, reader_fixture, expected",
+        [
+            (PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, "admin", True),
+        ],
+    )
+    def test_can_read(self, request, permission, reader_fixture, expected, user, owner):
+        page = make_owned_page(user=user, owner=owner, read=permission)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else page.owner
+            if reader_fixture == "owner"
+            else request.getfixturevalue(reader_fixture)
+        )
+        assert page.can_read(reader) == expected
 
-    def test_str(self, revision):
-        assert str(revision) == revision.slug
+    @pytest.mark.parametrize(
+        "before, after, reader_fixture, expected",
+        [
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "other", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "other", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "user", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "user", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "owner", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "owner", False),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "owner", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "owner", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.OWNER_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.PUBLIC, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.MEMBERS_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.EDITORS_ONLY, "admin", True),
+            (PermissionLevel.OWNER_ONLY, PermissionLevel.ADMIN_ONLY, "admin", True),
+        ],
+    )
+    def test_can_write(self, request, before, after, reader_fixture, expected, user, owner):
+        page = make_owned_page(user=user, owner=owner, write=before)
+        reader = (
+            None
+            if reader_fixture is None
+            else user
+            if reader_fixture == "user"
+            else owner
+            if reader_fixture == "owner"
+            else request.getfixturevalue(reader_fixture)
+        )
+        page.read = after.value
+        assert page.can_write(after, reader) == expected
 
-    def test_unique_slug(self, wiki_page):
-        with pytest.raises(IntegrityError):
-            WikiPage.create(title="Test Page", slug=wiki_page.slug, body="Test", editor=wiki_page.created_by)
 
-    def test_unique_slug_does_not_stop_update(self, wiki_page):
-        updated_title = "Updated Title"
-        slug = wiki_page.slug
-        wiki_page.patch(title=updated_title, editor=wiki_page.created_by, message="Update title.")
-        assert wiki_page.title == updated_title
-        assert wiki_page.slug == slug
+@pytest.mark.django_db
+class TestCharacter:
+    def test_create(self, character):
+        assert isinstance(character, Character)
+        assert isinstance(character.player, User)
 
-    def test_set_slug_default(self, revision):
-        revision.title = "Test Page"
-        revision.slug = ""
-        revision.set_slug()
-        assert revision.slug == "test-page"
 
-    def test_set_slug_param(self, revision):
-        revision.title = "Test Page"
-        revision.slug = ""
-        revision.set_slug("test")
-        assert revision.slug == "test"
-
-    def test_set_slug_slugify(self, revision):
-        revision.title = "Test Page"
-        revision.slug = ""
-        revision.set_slug("Test Page Title")
-        assert revision.slug == "test-page-title"
-
-    def test_set_slug_child(self, child_wiki_page):
-        rev = child_wiki_page.latest
-        rev.title = "Child Page"
-        rev.slug = ""
-        rev.set_slug("Child Page")
-        assert rev.slug == f"{child_wiki_page.parent.slug}/child-page"
+@pytest.mark.django_db
+class TestTemplate:
+    def test_create(self, template):
+        assert isinstance(template, Template)
 
 
 @pytest.mark.django_db
 class TestSecretCategory:
     def test_create_read(self, secret_category):
         assert isinstance(secret_category, SecretCategory)
-        assert is_string(secret_category.name)
-        assert is_string(secret_category.parent.name)
+        assert isstring(secret_category.name)
+        assert isstring(secret_category.parent.name)
         assert secret_category.children.count() == 1
-        assert is_string(secret_category.children.first().name)
+        assert isstring(secret_category.children.first().name)
 
     def test_str(self, secret_category):
         assert str(secret_category) == secret_category.name
@@ -400,19 +371,18 @@ class TestSecretCategory:
 class TestSecret:
     def test_create_read(self, secret):
         assert isinstance(secret, Secret)
-        assert is_string(secret.key)
-        assert is_string(secret.description)
+        assert isstring(secret.key)
+        assert isstring(secret.description)
         assert secret.categories.count() == 1
-        assert is_string(secret.categories.first().name)
+        assert isstring(secret.categories.first().name)
         assert secret.known_to.count() == 1
-        assert isinstance(secret.known_to.first(), WikiPage)
-        assert secret.known_to.first().page_type == PageType.CHARACTER
+        assert isinstance(secret.known_to.first(), Character)
 
     def test_str(self, secret):
         assert str(secret) == secret.key
 
     def test_knows(self, secret, character):
-        fool = CharacterFactory()
+        fool = make_character()
         assert secret.knows(secret.known_to.first())
         assert not secret.knows(fool)
 
@@ -433,9 +403,9 @@ class TestSecretEvaluator:
 
     @staticmethod
     def setup():
-        alice = CharacterFactory()
-        bob = CharacterFactory()
-        charlie = CharacterFactory()
+        alice = make_character()
+        bob = make_character()
+        charlie = make_character()
 
         secrets = [
             SecretFactory(),
