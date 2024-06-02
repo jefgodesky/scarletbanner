@@ -1,6 +1,6 @@
 import pytest
 
-from scarletbanner.wiki.tests.factories import make_character, make_owned_page, make_page
+from scarletbanner.wiki.tests.factories import SecretCategoryFactory, make_character, make_owned_page, make_page
 
 
 @pytest.fixture
@@ -27,3 +27,11 @@ def owned_page(user, owner):
 @pytest.fixture
 def character(user):
     return make_character(user=user)
+
+
+@pytest.fixture
+def secret_category():
+    parent = SecretCategoryFactory(name="Parent Category")
+    category = SecretCategoryFactory(parent=parent)
+    SecretCategoryFactory(name="Child Category", parent=category)
+    return category

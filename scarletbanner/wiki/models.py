@@ -4,6 +4,7 @@ from polymorphic.models import PolymorphicModel
 from simple_history.models import HistoricalRecords
 from simple_history.utils import update_change_reason
 from slugify import slugify
+from tree_queries.models import TreeNode
 
 from scarletbanner.wiki.enums import PermissionLevel
 
@@ -180,3 +181,14 @@ class Character(OwnedPage):
     @property
     def player(self):
         return self.owner
+
+
+class SecretCategory(TreeNode):
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        verbose_name = "Secret category"
+        verbose_name_plural = "Secret categories"
+
+    def __str__(self):
+        return self.name

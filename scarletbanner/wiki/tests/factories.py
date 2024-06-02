@@ -1,10 +1,12 @@
+import factory
 from django.contrib.auth import get_user_model
+from factory.django import DjangoModelFactory
 from faker import Faker
 from slugify import slugify
 
 from scarletbanner.users.tests.factories import UserFactory
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, OwnedPage, Page
+from scarletbanner.wiki.models import Character, OwnedPage, Page, SecretCategory
 
 fake = Faker()
 User = get_user_model()
@@ -37,3 +39,15 @@ def make_owned_page(**kwargs) -> OwnedPage:
 
 def make_character(**kwargs) -> Character:
     return make_page_instance(Character, **kwargs)
+
+
+class SecretCategoryFactory(DjangoModelFactory):
+    class Meta:
+        model = SecretCategory
+
+    name = factory.Faker("sentence")
+    parent = None
+
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        instance.save()
