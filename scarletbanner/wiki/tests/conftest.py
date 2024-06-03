@@ -5,6 +5,7 @@ from scarletbanner.wiki.tests.factories import (
     SecretFactory,
     make_character,
     make_file,
+    make_image,
     make_owned_page,
     make_page,
     make_template,
@@ -45,6 +46,21 @@ def template(user):
 @pytest.fixture
 def file(user):
     return make_file(user=user)
+
+
+@pytest.fixture
+def jpeg(user):
+    return make_image(user=user, file_format="JPEG")
+
+
+@pytest.fixture
+def gif(user):
+    return make_image(user=user, file_format="GIF")
+
+
+@pytest.fixture
+def png(user):
+    return make_image(user=user, file_format="PNG")
 
 
 @pytest.fixture

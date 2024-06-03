@@ -7,7 +7,8 @@ from slugify import slugify
 
 from scarletbanner.users.tests.factories import UserFactory
 from scarletbanner.wiki.enums import PermissionLevel
-from scarletbanner.wiki.models import Character, File, OwnedPage, Page, Secret, SecretCategory, Template
+from scarletbanner.wiki.models import Character, File, Image, OwnedPage, Page, Secret, SecretCategory, Template
+from scarletbanner.wiki.tests.utils import generate_test_image
 
 fake = Faker()
 User = get_user_model()
@@ -26,8 +27,13 @@ def make_page_instance(cls, **kwargs):
     if issubclass(cls, OwnedPage):
         owner = kwargs.get("owner", user)
         return cls.create(user, title, body, message, slug, parent, owner, read, write)
+    elif issubclass(cls, Image):
+        file_format = kwargs.get("file_format", "JPEG")
+        file_name = kwargs.get("file_name", fake.word())
+        image = generate_test_image(file_name, file_format)
+        return cls.create(user, title, body, message, slug, parent, image, read, write)
     elif issubclass(cls, File):
-        file_name = kwargs.get("file_name", "test.txt")
+        file_name = kwargs.get("file_name", fake.file_name(extension="txt"))
         file_contents = kwargs.get("file_contents", b"Test file content.")
         attachment = kwargs.get("attachment", SimpleUploadedFile(file_name, file_contents))
         return cls.create(user, title, body, message, slug, parent, attachment, read, write)
@@ -53,6 +59,10 @@ def make_template(**kwargs) -> Template:
 
 def make_file(**kwargs) -> File:
     return make_page_instance(File, **kwargs)
+
+
+def make_image(**kwargs) -> Image:
+    return make_page_instance(Image, **kwargs)
 
 
 class SecretCategoryFactory(DjangoModelFactory):

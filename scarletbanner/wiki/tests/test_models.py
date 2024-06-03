@@ -1,11 +1,14 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from slugify import slugify
 
 from scarletbanner.wiki.enums import PermissionLevel
 from scarletbanner.wiki.models import (
     Character,
     File,
+    Image,
     OwnedPage,
     Page,
     Secret,
@@ -368,7 +371,8 @@ class TestFile:
     def test_create(self, file):
         assert isinstance(file, File)
         assert file.attachment is not None
-        assert file.attachment.name == "uploads/test.txt"
+        assert file.attachment.name.startswith("uploads/")
+        assert file.attachment.name.endswith(".txt")
         assert file.attachment.size == 18
         assert file.size == "18 B"
         assert file.content_type == "text/plain"
@@ -378,6 +382,35 @@ class TestFile:
         assert File.get_human_readable_size(5000) == "4.9 kB"
         assert File.get_human_readable_size(5000000) == "4.8 MB"
         assert File.get_human_readable_size(5000000000) == "4.7 GB"
+
+
+@pytest.mark.django_db
+class TestImage:
+    def test_create_jpeg(self, jpeg):
+        assert isinstance(jpeg, Image)
+        assert jpeg.attachment is not None
+        assert jpeg.attachment.name.startswith("uploads/")
+        assert jpeg.attachment.name.endswith(".jpeg")
+        assert jpeg.content_type == "image/jpeg"
+
+    def test_create_gif(self, gif):
+        assert isinstance(gif, Image)
+        assert gif.attachment is not None
+        assert gif.attachment.name.startswith("uploads/")
+        assert gif.attachment.name.endswith(".gif")
+        assert gif.content_type == "image/gif"
+
+    def test_create_png(self, png):
+        assert isinstance(png, Image)
+        assert png.attachment is not None
+        assert png.attachment.name.startswith("uploads/")
+        assert png.attachment.name.endswith(".png")
+        assert png.content_type == "image/png"
+
+    def test_create_not_image(self, user):
+        attachment = SimpleUploadedFile("test.text", b"Test file content.", content_type="text/plain")
+        with pytest.raises(ValidationError):
+            Image.create(editor=user, title="Test File", body="This is a test file", attachment=attachment)
 
 
 @pytest.mark.django_db

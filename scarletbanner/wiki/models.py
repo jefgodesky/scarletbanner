@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import models
 from polymorphic.models import PolymorphicModel
@@ -241,6 +242,33 @@ class File(Page):
             return f"{size / 1024:.1f} kB"
         else:
             return f"{size} B"
+
+
+class Image(File):
+    def clean(self):
+        super().clean()
+        if self.attachment:
+            content_type = self.attachment.file.content_type
+            if not content_type.startswith("image/"):
+                raise ValidationError("Attachment is not an image.")
+
+    @classmethod
+    def create(
+        cls,
+        editor: User,
+        title: str,
+        body: str,
+        message: str = "Initial text",
+        slug: str = None,
+        parent: Page = None,
+        attachment: UploadedFile = None,
+        read: PermissionLevel = PermissionLevel.PUBLIC,
+        write: PermissionLevel = PermissionLevel.PUBLIC,
+    ):
+        if attachment:
+            if not attachment.content_type.startswith("image/"):
+                raise ValidationError("Attachment is not an image.")
+        return super().create(editor, title, body, message, slug, parent, attachment, read, write)
 
 
 class SecretCategory(TreeNode):
