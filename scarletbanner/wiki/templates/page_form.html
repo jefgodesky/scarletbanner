@@ -2,46 +2,37 @@
 
 {% block content %}
   <h1>Create a New Page</h1>
-  <form method="POST" action="{% url 'wiki:create' %}">
+  <form method="post" action="{% url 'wiki:create' %}">
     {% csrf_token %}
     {{ form.type.label_tag }}
     {{ form.type }}
     {{ form.type.errors }}
-
     {{ form.title.label_tag }}
     {{ form.title }}
     {{ form.title.errors }}
-
     {{ form.slug.label_tag }}
     {{ form.slug }}
     {{ form.slug.errors }}
-
     {{ form.parent.label_tag }}
     {{ form.parent }}
     {{ form.parent.errors }}
-
     {{ form.attachment.label_tag }}
     {{ form.attachment }}
     {{ form.attachment.errors }}
-
     {{ form.body.label_tag }}
     {{ form.body }}
     {{ form.body.errors }}
-
     {{ form.owner.label_tag }}
     {{ form.owner }}
     {{ form.owner.errors }}
-
     <fieldset>
       <legend>Permissions</legend>
-
       {{ form.read.label_tag }}
       {{ form.read }}
       {{ form.read.errors }}
-
       {{ form.write.label_tag }}
       {{ form.write }}
       {{ form.write.errors }}
     </fieldset>
   </form>
-{% endblock %}
+{% endblock content %}

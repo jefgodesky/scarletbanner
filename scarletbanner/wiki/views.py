@@ -1,4 +1,4 @@
-from django.shortcuts import get_object_or_404, render, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 
 from scarletbanner.wiki.forms import PageForm
 from scarletbanner.wiki.models import Page

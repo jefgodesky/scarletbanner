@@ -1,5 +1,6 @@
 from django import forms
 from django.forms import modelform_factory
+
 from scarletbanner.wiki.models import Page
 
 
@@ -18,7 +19,7 @@ class PageForm(forms.ModelForm):
         fields = ["title", "slug", "body", "parent", "read", "write"]
 
     def __init__(self, *args, **kwargs):
-        super(PageForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.add_subclass_fields()
 
         if self.instance.pk:
