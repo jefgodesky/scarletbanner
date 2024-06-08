@@ -72,6 +72,26 @@ class TestPageViewSet:
         response = view(request)
         assert response.data["total"] == 0
 
+    @pytest.mark.parametrize(
+        "reader_fixture, count, expected",
+        [
+            (None, 1, ["Public"]),
+            ("other", 2, ["Members Only", "Public"]),
+            ("user", 3, ["Editors Only", "Members Only", "Public"]),
+            ("admin", 4, ["Admin Only", "Editors Only", "Members Only", "Public"]),
+        ],
+    )
+    def test_list_permissions(self, api_rf: APIRequestFactory, list_pages, reader_fixture, count, expected, request):
+        reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
+        view = PageViewSet.as_view({"get": "list"})
+        request = api_rf.get("/api/v1/wiki/")
+        request.user = reader
+        response = view(request)
+        actual = [page["title"] for page in response.data["pages"]]
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["total"] == count
+        assert actual == expected
+
     def test_retrieve_page(self, api_rf: APIRequestFactory, page: Page):
         view = PageViewSet.as_view({"get": "retrieve"})
         request = api_rf.get(f"/api/v1/wiki/{page.slug}")

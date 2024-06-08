@@ -61,7 +61,7 @@ class Page(PolymorphicModel):
             case PermissionLevel.PUBLIC:
                 return True
             case PermissionLevel.MEMBERS_ONLY:
-                return user is not None
+                return user is not None and not user.is_anonymous
             case PermissionLevel.EDITORS_ONLY:
                 return user in self.editors
             case _:

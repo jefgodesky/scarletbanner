@@ -1,5 +1,6 @@
 import pytest
 
+from scarletbanner.wiki.enums import PermissionLevel
 from scarletbanner.wiki.tests.factories import (
     SecretCategoryFactory,
     SecretFactory,
@@ -31,6 +32,16 @@ def grandchild_page(child_page):
 @pytest.fixture
 def owned_page(user, owner):
     return make_owned_page(user=user, owner=owner)
+
+
+@pytest.fixture
+def list_pages(user, admin):
+    return [
+        make_page(title="Public", read=PermissionLevel.PUBLIC, user=user),
+        make_page(title="Members Only", read=PermissionLevel.MEMBERS_ONLY, user=user),
+        make_page(title="Editors Only", read=PermissionLevel.EDITORS_ONLY, user=user),
+        make_page(title="Admin Only", read=PermissionLevel.ADMIN_ONLY, user=user),
+    ].reverse()
 
 
 @pytest.fixture

@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from slugify import slugify
@@ -146,18 +147,22 @@ class TestPage:
         "permission, reader_fixture, expected",
         [
             (PermissionLevel.PUBLIC, None, True),
+            (PermissionLevel.PUBLIC, "anonymous", True),
             (PermissionLevel.PUBLIC, "other", True),
             (PermissionLevel.PUBLIC, "user", True),
             (PermissionLevel.PUBLIC, "admin", True),
             (PermissionLevel.MEMBERS_ONLY, None, False),
+            (PermissionLevel.MEMBERS_ONLY, "anonymous", False),
             (PermissionLevel.MEMBERS_ONLY, "other", True),
             (PermissionLevel.MEMBERS_ONLY, "user", True),
             (PermissionLevel.MEMBERS_ONLY, "admin", True),
             (PermissionLevel.EDITORS_ONLY, None, False),
+            (PermissionLevel.EDITORS_ONLY, "anonymous", False),
             (PermissionLevel.EDITORS_ONLY, "other", False),
             (PermissionLevel.EDITORS_ONLY, "user", True),
             (PermissionLevel.EDITORS_ONLY, "admin", True),
             (PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.ADMIN_ONLY, "anonymous", False),
             (PermissionLevel.ADMIN_ONLY, "other", False),
             (PermissionLevel.ADMIN_ONLY, "user", False),
             (PermissionLevel.ADMIN_ONLY, "admin", True),
@@ -168,6 +173,8 @@ class TestPage:
         reader = (
             None
             if reader_fixture is None
+            else AnonymousUser()
+            if reader_fixture == "anonymous"
             else user
             if reader_fixture == "user"
             else request.getfixturevalue(reader_fixture)
@@ -193,6 +200,22 @@ class TestPage:
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, None, False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, None, False),
             (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, None, False),
+            (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "anonymous", True),
+            (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "anonymous", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "anonymous", False),
+            (PermissionLevel.PUBLIC, PermissionLevel.ADMIN_ONLY, "anonymous", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.PUBLIC, "anonymous", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.MEMBERS_ONLY, "anonymous", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.EDITORS_ONLY, "anonymous", False),
+            (PermissionLevel.MEMBERS_ONLY, PermissionLevel.ADMIN_ONLY, "anonymous", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.PUBLIC, "anonymous", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.MEMBERS_ONLY, "anonymous", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.EDITORS_ONLY, "anonymous", False),
+            (PermissionLevel.EDITORS_ONLY, PermissionLevel.ADMIN_ONLY, "anonymous", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.PUBLIC, "anonymous", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.MEMBERS_ONLY, "anonymous", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.EDITORS_ONLY, "anonymous", False),
+            (PermissionLevel.ADMIN_ONLY, PermissionLevel.ADMIN_ONLY, "anonymous", False),
             (PermissionLevel.PUBLIC, PermissionLevel.PUBLIC, "other", True),
             (PermissionLevel.PUBLIC, PermissionLevel.MEMBERS_ONLY, "other", True),
             (PermissionLevel.PUBLIC, PermissionLevel.EDITORS_ONLY, "other", False),
@@ -248,6 +271,8 @@ class TestPage:
         reader = (
             None
             if reader_fixture is None
+            else AnonymousUser()
+            if reader_fixture == "anonymous"
             else user
             if reader_fixture == "user"
             else request.getfixturevalue(reader_fixture)
@@ -269,6 +294,7 @@ class TestOwnedPage:
         "permission, reader_fixture, expected",
         [
             (PermissionLevel.OWNER_ONLY, None, False),
+            (PermissionLevel.OWNER_ONLY, "anonymous", False),
             (PermissionLevel.OWNER_ONLY, "other", False),
             (PermissionLevel.OWNER_ONLY, "user", False),
             (PermissionLevel.OWNER_ONLY, "owner", True),
@@ -280,6 +306,8 @@ class TestOwnedPage:
         reader = (
             None
             if reader_fixture is None
+            else AnonymousUser()
+            if reader_fixture == "anonymous"
             else user
             if reader_fixture == "user"
             else page.owner
@@ -343,6 +371,8 @@ class TestOwnedPage:
         reader = (
             None
             if reader_fixture is None
+            else AnonymousUser()
+            if reader_fixture == "anonymous"
             else user
             if reader_fixture == "user"
             else owner

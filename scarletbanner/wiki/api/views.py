@@ -49,13 +49,14 @@ class PageViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
+        permitted_queryset = [page for page in queryset if page.can_read(request.user)]
+        page = self.paginate_queryset(permitted_queryset)
 
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(permitted_queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
