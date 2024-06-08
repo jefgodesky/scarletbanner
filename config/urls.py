@@ -54,6 +54,7 @@ urlpatterns += [
     path("api/v1/token/", DocumentedObtainAuthToken.as_view(), name="obtain-auth-token"),
     path("api/v1/schema/", DocumentedAPIView.as_view(permission_classes=(permissions.AllowAny,)), name="api-schema"),
     path("api/v1/wiki/", PageViewSet.as_view({"get": "list"}), name="api-wiki"),
+    path("api/v1/wiki/<slug:slug>/", PageViewSet.as_view({"get": "retrieve"}), name="api-wiki-detail"),
     path(
         "api/v1/docs/",
         SpectacularSwaggerView.as_view(url_name="api-schema", permission_classes=(permissions.AllowAny,)),

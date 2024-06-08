@@ -25,14 +25,20 @@ class WikiPagination(pagination.LimitOffsetPagination):
 
 @extend_schema_view(
     list=extend_schema(
-        summary="List all page",
+        summary="List all pages",
         description="This endpoint returns a list of all wiki pages.",
+        auth=[],
+    ),
+    retrieve=extend_schema(
+        summary="Return a page",
+        description="This endpoint returns a single wiki page.",
         auth=[],
     ),
 )
 class PageViewSet(viewsets.ModelViewSet):
     serializer_class = PageSerializer
     pagination_class = WikiPagination
+    lookup_field = "slug"
 
     def get_queryset(self):
         queryset = Page.objects.all().order_by("-id")
@@ -50,4 +56,12 @@ class PageViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        slug = kwargs.get("slug")
+        instance = self.get_queryset().filter(slug=slug).first()
+        if instance is None:
+            return Response({"detail": f"No page found with the path '{slug}'"}, status=404)
+        serializer = self.get_serializer(instance)
         return Response(serializer.data)
