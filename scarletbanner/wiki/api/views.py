@@ -1,5 +1,6 @@
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from rest_framework import viewsets, pagination
+from rest_framework import pagination, viewsets
 from rest_framework.response import Response
 
 from scarletbanner.wiki.api.serializers import PageSerializer
@@ -11,13 +12,15 @@ class WikiPagination(pagination.LimitOffsetPagination):
     max_limit = 100
 
     def get_paginated_response(self, data):
-        return Response({
-            "query": self.request.query_params.get("query", ""),
-            "offset": self.offset,
-            "limit": self.limit,
-            "total": self.count,
-            "pages": data
-        })
+        return Response(
+            {
+                "query": self.request.query_params.get("query", ""),
+                "offset": self.offset,
+                "limit": self.limit,
+                "total": self.count,
+                "pages": data,
+            }
+        )
 
 
 @extend_schema_view(
@@ -28,9 +31,15 @@ class WikiPagination(pagination.LimitOffsetPagination):
     ),
 )
 class PageViewSet(viewsets.ModelViewSet):
-    queryset = Page.objects.all().order_by("-id")
     serializer_class = PageSerializer
     pagination_class = WikiPagination
+
+    def get_queryset(self):
+        queryset = Page.objects.all().order_by("-id")
+        query = self.request.query_params.get("query", None)
+        if query:
+            queryset = queryset.filter(Q(title__icontains=query) | Q(slug__icontains=query))
+        return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())

@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
@@ -49,3 +51,23 @@ class TestPageViewSet:
         assert response.data["limit"] == 2
         assert response.data["total"] == 5
         assert response.data["pages"][0]["title"] == pages[0].title
+
+    def test_list_title_query(self, api_rf: APIRequestFactory, page: Page):
+        view = PageViewSet.as_view({"get": "list"})
+        request = api_rf.get(f"/api/v1/pages/?query={quote(page.title)}")
+        response = view(request)
+        assert response.data["total"] == 1
+        assert response.data["pages"][0]["id"] == page.id
+
+    def test_list_path_query(self, api_rf: APIRequestFactory, page: Page):
+        view = PageViewSet.as_view({"get": "list"})
+        request = api_rf.get(f"/api/v1/pages/?query={quote(page.slug)}")
+        response = view(request)
+        assert response.data["total"] == 1
+        assert response.data["pages"][0]["id"] == page.id
+
+    def test_list_no_results_query(self, api_rf: APIRequestFactory, page: Page):
+        view = PageViewSet.as_view({"get": "list"})
+        request = api_rf.get("/api/v1/pages/?query=nope")
+        response = view(request)
+        assert response.data["total"] == 0
