@@ -4,6 +4,7 @@ from rest_framework.test import APIRequestFactory
 
 from scarletbanner.wiki.api.views import PageViewSet
 from scarletbanner.wiki.models import Page
+from scarletbanner.wiki.tests.factories import make_page
 
 
 @pytest.mark.django_db
@@ -17,4 +18,34 @@ class TestPageViewSet:
         request = api_rf.get("/api/v1/pages/")
         response = view(request)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data[0]["title"] == page.title
+        assert response.data["query"] == ""
+        assert response.data["offset"] == 0
+        assert response.data["limit"] == 50
+        assert response.data["pages"][0]["title"] == page.title
+
+    def test_list_pagination(self, api_rf: APIRequestFactory):
+        view = PageViewSet.as_view({"get": "list"})
+        pages = [make_page(title=f"Page {i}") for i in range(5, 0, -1)]
+
+        request = api_rf.get("/api/v1/pages/?offset=0&limit=2")
+        response = view(request)
+        assert response.data["offset"] == 0
+        assert response.data["limit"] == 2
+        assert response.data["total"] == 5
+        assert response.data["pages"][0]["title"] == pages[4].title
+        assert response.data["pages"][1]["title"] == pages[3].title
+
+        request = api_rf.get("/api/v1/pages/?offset=2&limit=2")
+        response = view(request)
+        assert response.data["offset"] == 2
+        assert response.data["limit"] == 2
+        assert response.data["total"] == 5
+        assert response.data["pages"][0]["title"] == pages[2].title
+        assert response.data["pages"][1]["title"] == pages[1].title
+
+        request = api_rf.get("/api/v1/pages/?offset=4&limit=2")
+        response = view(request)
+        assert response.data["offset"] == 4
+        assert response.data["limit"] == 2
+        assert response.data["total"] == 5
+        assert response.data["pages"][0]["title"] == pages[0].title
