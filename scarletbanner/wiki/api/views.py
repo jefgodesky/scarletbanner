@@ -12,6 +12,22 @@ class WikiPagination(pagination.LimitOffsetPagination):
     max_limit = 100
 
     def get_paginated_response(self, data):
+        request_url = self.request.build_absolute_uri().split("?")[0]
+        limit = self.limit if hasattr(self, "limit") else self.default_limit
+
+        links = [
+            f'<{request_url}?offset=0&limit={limit}>; rel="first"',
+            f'<{request_url}?offset={(self.count // limit) * limit}&limit={limit}>; rel="last"',
+        ]
+
+        if self.offset + limit < self.count:
+            next_offset = self.offset + limit
+            links.insert(0, f'<{request_url}?offset={next_offset}&limit={limit}>; rel="next"')
+
+        if self.offset > 0:
+            prev_offset = max(0, self.offset - limit)
+            links.insert(0, f'<{request_url}?offset={prev_offset}&limit={limit}>; rel="prev"')
+
         return Response(
             {
                 "query": self.request.query_params.get("query", ""),
@@ -19,7 +35,8 @@ class WikiPagination(pagination.LimitOffsetPagination):
                 "limit": self.limit,
                 "total": self.count,
                 "pages": data,
-            }
+            },
+            headers={"Link": ", ".join(links)},
         )
 
 

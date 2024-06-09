@@ -29,24 +29,43 @@ class TestPageViewSet:
         view = PageViewSet.as_view({"get": "list"})
         pages = [make_page(title=f"Page {i}") for i in range(5, 0, -1)]
 
+        expected_link_header = (
+            '<http://testserver/api/v1/wiki/?offset=2&limit=2>; rel="next", '
+            '<http://testserver/api/v1/wiki/?offset=0&limit=2>; rel="first", '
+            '<http://testserver/api/v1/wiki/?offset=4&limit=2>; rel="last"'
+        )
         request = api_rf.get("/api/v1/wiki/?offset=0&limit=2")
         response = view(request)
+        assert response.headers["Link"] == expected_link_header
         assert response.data["offset"] == 0
         assert response.data["limit"] == 2
         assert response.data["total"] == 5
         assert response.data["pages"][0]["title"] == pages[4].title
         assert response.data["pages"][1]["title"] == pages[3].title
 
+        expected_link_header = (
+            '<http://testserver/api/v1/wiki/?offset=0&limit=2>; rel="prev", '
+            '<http://testserver/api/v1/wiki/?offset=4&limit=2>; rel="next", '
+            '<http://testserver/api/v1/wiki/?offset=0&limit=2>; rel="first", '
+            '<http://testserver/api/v1/wiki/?offset=4&limit=2>; rel="last"'
+        )
         request = api_rf.get("/api/v1/wiki/?offset=2&limit=2")
         response = view(request)
+        assert response.headers["Link"] == expected_link_header
         assert response.data["offset"] == 2
         assert response.data["limit"] == 2
         assert response.data["total"] == 5
         assert response.data["pages"][0]["title"] == pages[2].title
         assert response.data["pages"][1]["title"] == pages[1].title
 
+        expected_link_header = (
+            '<http://testserver/api/v1/wiki/?offset=2&limit=2>; rel="prev", '
+            '<http://testserver/api/v1/wiki/?offset=0&limit=2>; rel="first", '
+            '<http://testserver/api/v1/wiki/?offset=4&limit=2>; rel="last"'
+        )
         request = api_rf.get("/api/v1/wiki/?offset=4&limit=2")
         response = view(request)
+        assert response.headers["Link"] == expected_link_header
         assert response.data["offset"] == 4
         assert response.data["limit"] == 2
         assert response.data["total"] == 5
