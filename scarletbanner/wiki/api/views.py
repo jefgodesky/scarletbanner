@@ -1,5 +1,5 @@
 from django.db.models import Q
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import pagination, viewsets
 from rest_framework.response import Response
 
@@ -45,6 +45,32 @@ class WikiPagination(pagination.LimitOffsetPagination):
         summary="List all pages",
         description="This endpoint returns a list of all wiki pages.",
         auth=[],
+        parameters=[
+            OpenApiParameter(name="query", description="Filter pages by title or slug", required=False, type=str),
+        ],
+        examples=[
+            OpenApiExample(
+                "Example Response",
+                value={
+                    "query": "",
+                    "offset": 0,
+                    "limit": 50,
+                    "total": 123,
+                    "pages": [
+                        {
+                            "id": 42,
+                            "title": "Page Title",
+                            "slug": "path/to/page",
+                            "body": "Lorem ipsum dolor sit amet.",
+                            "read": "Public",
+                            "write": "Public",
+                        }
+                    ],
+                },
+                response_only=True,
+                status_codes=["200"],
+            )
+        ],
     ),
     retrieve=extend_schema(
         summary="Return a page",
