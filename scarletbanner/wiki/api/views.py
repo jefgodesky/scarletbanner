@@ -76,6 +76,35 @@ class WikiPagination(pagination.LimitOffsetPagination):
         summary="Return a page",
         description="This endpoint returns a single wiki page.",
         auth=[],
+        examples=[
+            OpenApiExample(
+                "Root Page (No Parent)",
+                value={
+                    "id": 42,
+                    "title": "Page Title",
+                    "slug": "page-title",
+                    "body": "Lorem ipsum dolor sit amet.",
+                    "read": "Public",
+                    "write": "Public",
+                },
+                response_only=True,
+                status_codes=["200"],
+            ),
+            OpenApiExample(
+                "Child Page",
+                value={
+                    "id": 42,
+                    "title": "Page Title",
+                    "slug": "page-id-41/page-title",
+                    "body": "Lorem ipsum dolor sit amet.",
+                    "parent": 41,
+                    "read": "Public",
+                    "write": "Public",
+                },
+                response_only=True,
+                status_codes=["200"],
+            ),
+        ],
     ),
 )
 class PageViewSet(viewsets.ModelViewSet):
