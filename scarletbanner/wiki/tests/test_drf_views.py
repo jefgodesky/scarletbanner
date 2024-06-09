@@ -73,14 +73,14 @@ class TestPageViewSet:
 
     def test_list_title_query(self, api_rf: APIRequestFactory, page: Page):
         view = PageViewSet.as_view({"get": "list"})
-        request = api_rf.get(f"/api/v1/wiki/?query={quote(page.title)}")
+        request = api_rf.get(f"/api/v1/wiki/?query={quote(page.title[:5])}")
         response = view(request)
         assert response.data["total"] == 1
         assert response.data["pages"][0]["id"] == page.id
 
     def test_list_path_query(self, api_rf: APIRequestFactory, page: Page):
         view = PageViewSet.as_view({"get": "list"})
-        request = api_rf.get(f"/api/v1/wiki/?query={quote(page.slug)}")
+        request = api_rf.get(f"/api/v1/wiki/?query={quote(page.slug[:5])}")
         response = view(request)
         assert response.data["total"] == 1
         assert response.data["pages"][0]["id"] == page.id
