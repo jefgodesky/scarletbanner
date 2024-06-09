@@ -116,7 +116,6 @@ class TestPageViewSet:
         request = api_rf.get(f"/api/v1/wiki/{page.slug}")
         response = view(request, slug=page.slug)
         assert response.status_code == status.HTTP_200_OK
-        print(response.data)
         assert response.data["title"] == page.title
 
     def test_retrieve_child(self, api_rf: APIRequestFactory, grandchild_page: Page):
@@ -154,12 +153,15 @@ class TestPageViewSet:
         view = PageViewSet.as_view({"get": "retrieve"})
         request = api_rf.get("/api/v1/wiki/")
         request.user = reader
-        print(list_pages)
         response = view(request, slug=list_pages[index].slug)
         assert response.status_code == expected_status
         if expected_status == status.HTTP_200_OK:
             assert response.data["title"] == list_pages[index].title
             assert "detail" not in response.data
+        elif expected_status == status.HTTP_401_UNAUTHORIZED:
+            assert response.data["detail"] == "You must be authenticated to access this resource."
+            assert response["WWW-Authenticate"] == "Token"
+            assert "title" not in response.data
         else:
             assert isinstance(response.data["detail"], str)
             assert "title" not in response.data

@@ -85,8 +85,17 @@ class PageViewSet(viewsets.ModelViewSet):
             return Response({"detail": f"No page found with the path '{slug}'"}, status=404)
 
         if not instance.can_read(request.user):
-            status = 401 if request.user is None or request.user.is_anonymous else 403
-            return Response({"detail": "You are not allowed to access this page."}, status=status)
+            if request.user is None or request.user.is_anonymous:
+                return Response(
+                    {"detail": "You must be authenticated to access this resource."},
+                    status=401,
+                    headers={"WWW-Authenticate": "Token"},
+                )
+            else:
+                return Response(
+                    {"detail": "You do not have permission to access this resource."},
+                    status=403,
+                )
 
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
