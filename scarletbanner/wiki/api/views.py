@@ -36,7 +36,7 @@ class WikiPagination(pagination.LimitOffsetPagination):
                 "total": self.count,
                 "pages": data,
             },
-            headers={"Link": ", ".join(links)},
+            headers={"Link": ", ".join(links)} if len(links) > 2 else None,
         )
 
 
