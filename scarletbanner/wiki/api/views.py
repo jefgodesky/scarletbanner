@@ -55,6 +55,7 @@ class WikiPagination(pagination.LimitOffsetPagination):
 class PageViewSet(viewsets.ModelViewSet):
     serializer_class = PageSerializer
     pagination_class = WikiPagination
+    queryset = Page.objects.all()
     lookup_field = "slug"
 
     def get_queryset(self):
