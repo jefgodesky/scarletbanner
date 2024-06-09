@@ -106,3 +106,41 @@ class TestPageViewSet:
         response = view(request, slug=grandchild_page.slug)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["title"] == grandchild_page.title
+
+    @pytest.mark.parametrize(
+        "reader_fixture, index, expected_status",
+        [
+            (None, 0, status.HTTP_401_UNAUTHORIZED),
+            (None, 1, status.HTTP_401_UNAUTHORIZED),
+            (None, 2, status.HTTP_401_UNAUTHORIZED),
+            (None, 3, status.HTTP_200_OK),
+            ("other", 0, status.HTTP_403_FORBIDDEN),
+            ("other", 1, status.HTTP_403_FORBIDDEN),
+            ("other", 2, status.HTTP_200_OK),
+            ("other", 3, status.HTTP_200_OK),
+            ("user", 0, status.HTTP_403_FORBIDDEN),
+            ("user", 1, status.HTTP_200_OK),
+            ("user", 2, status.HTTP_200_OK),
+            ("user", 3, status.HTTP_200_OK),
+            ("admin", 0, status.HTTP_200_OK),
+            ("admin", 1, status.HTTP_200_OK),
+            ("admin", 2, status.HTTP_200_OK),
+            ("admin", 3, status.HTTP_200_OK),
+        ],
+    )
+    def test_retrieve_permissions(
+        self, api_rf: APIRequestFactory, list_pages, reader_fixture, index, expected_status, request
+    ):
+        reader = None if reader_fixture is None else request.getfixturevalue(reader_fixture)
+        view = PageViewSet.as_view({"get": "retrieve"})
+        request = api_rf.get("/api/v1/wiki/")
+        request.user = reader
+        print(list_pages)
+        response = view(request, slug=list_pages[index].slug)
+        assert response.status_code == expected_status
+        if expected_status == status.HTTP_200_OK:
+            assert response.data["title"] == list_pages[index].title
+            assert "detail" not in response.data
+        else:
+            assert isinstance(response.data["detail"], str)
+            assert "title" not in response.data

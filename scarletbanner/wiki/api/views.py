@@ -62,7 +62,13 @@ class PageViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         slug = kwargs.get("slug")
         instance = self.get_queryset().filter(slug=slug).first()
+
         if instance is None:
             return Response({"detail": f"No page found with the path '{slug}'"}, status=404)
+
+        if not instance.can_read(request.user):
+            status = 401 if request.user is None or request.user.is_anonymous else 403
+            return Response({"detail": "You are not allowed to access this page."}, status=status)
+
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
