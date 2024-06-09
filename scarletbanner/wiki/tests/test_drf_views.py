@@ -125,6 +125,13 @@ class TestPageViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["title"] == grandchild_page.title
 
+    def test_retrieve_404(self, api_rf: APIRequestFactory):
+        view = PageViewSet.as_view({"get": "retrieve"})
+        request = api_rf.get("/api/v1/wiki/nope")
+        response = view(request, slug="nope")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.data["detail"] == "No page found with the path 'nope'"
+
     @pytest.mark.parametrize(
         "reader_fixture, index, expected_status",
         [
