@@ -117,6 +117,7 @@ class TestPageViewSet:
         response = view(request, slug=page.slug)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["title"] == page.title
+        assert "parent" not in response.data
 
     def test_retrieve_child(self, api_rf: APIRequestFactory, grandchild_page: Page):
         view = PageViewSet.as_view({"get": "retrieve"})
@@ -124,6 +125,7 @@ class TestPageViewSet:
         response = view(request, slug=grandchild_page.slug)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["title"] == grandchild_page.title
+        assert "parent" in response.data
 
     def test_retrieve_404(self, api_rf: APIRequestFactory):
         view = PageViewSet.as_view({"get": "retrieve"})

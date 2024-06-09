@@ -13,4 +13,6 @@ class PageSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         representation["read"] = PermissionLevel(instance.read).name.replace("_", " ").title()
         representation["write"] = PermissionLevel(instance.write).name.replace("_", " ").title()
+        if representation["parent"] is None:
+            representation.pop("parent")
         return representation
