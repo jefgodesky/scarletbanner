@@ -72,6 +72,6 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
             cd ${{ secrets.DROPLET_PROJECT_PATH }}
-            git pull origin main
-            docker-compose -f production.yml down
-            docker-compose -f production.yml up -d --build
+            git pull --ff-only
+            docker compose -f production.yml down
+            docker compose -f production.yml up -d --build
