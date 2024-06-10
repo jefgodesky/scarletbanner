@@ -1,10 +1,9 @@
-version: '3'
-
 volumes:
-  production_postgres_data: {}
-  production_postgres_data_backups: {}
-  production_traefik: {}
-  production_django_media: {}
+  scarletbanner_production_postgres_data: {}
+  scarletbanner_production_postgres_data_backups: {}
+  scarletbanner_production_redis_data: {}
+  scarletbanner_production_traefik: {}
+  scarletbanner_production_django_media: {}
 
 services:
   django: &django
@@ -14,13 +13,13 @@ services:
 
     image: scarletbanner_production_django
     volumes:
-      - production_django_media:/app/scarletbanner/media
+      - scarletbanner_production_django_media:/app/scarletbanner/media
     depends_on:
       - postgres
       - redis
     env_file:
-      - ./.envs/.production/.django
       - ./.envs/.production/.postgres
+      - ./.envs/.production/.django
     command: /start
 
   postgres:
@@ -29,8 +28,8 @@ services:
       dockerfile: ./compose/production/postgres/Dockerfile
     image: scarletbanner_production_postgres
     volumes:
-      - production_postgres_data:/var/lib/postgresql/data
-      - production_postgres_data_backups:/backups
+      - scarletbanner_production_postgres_data:/var/lib/postgresql/data
+      - scarletbanner_production_postgres_data_backups:/backups
     env_file:
       - ./.envs/.production/.postgres
 
@@ -42,7 +41,7 @@ services:
     depends_on:
       - django
     volumes:
-      - production_traefik:/etc/traefik/acme
+      - scarletbanner_production_traefik:/etc/traefik/acme
     ports:
       - '0.0.0.0:80:80'
       - '0.0.0.0:443:443'
@@ -50,6 +49,9 @@ services:
 
   redis:
     image: redis:6
+    container_name: scarletbanner_production_redis
+    volumes:
+      - scarletbanner_production_redis_data:/data
 
   celeryworker:
     <<: *django
@@ -76,4 +78,4 @@ services:
     volumes:
       - ../nginx.conf:/etc/nginx/nginx.conf
       - ../scarletbanner-design:/design
-      - production_django_media:/usr/share/nginx/media:ro
+      - scarletbanner_production_django_media:/usr/share/nginx/media:ro

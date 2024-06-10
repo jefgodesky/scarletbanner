@@ -1,5 +1,3 @@
-version: '3'
-
 volumes:
   scarletbanner_local_postgres_data: {}
   scarletbanner_local_postgres_data_backups: {}
